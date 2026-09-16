@@ -1,0 +1,30 @@
+{
+  "name": "nest-code-explorer",
+  "version": "0.1.0",
+  "description": "NestJS 프로젝트를 정적 분석해 인터랙티브 코드 탐색기(단일 HTML)와 코드 지도(mermaid)를 만든다",
+  "license": "MIT",
+  "private": true,
+  "main": "dist/analyze.js",
+  "bin": {
+    "nest-code-explorer": "bin/cli.js"
+  },
+  "files": [
+    "bin",
+    "dist",
+    "template",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "ts-morph": "^28.0.0",
+    "vis-network": "^10.1.2"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3"
+  }
+}
