@@ -1,5 +1,13 @@
 # nest-code-explorer
 
+Static code explorer for NestJS projects. It reads your TypeScript sources with ts-morph (no app boot, no database) and generates an interactive single-file HTML explorer plus a mermaid code map: entry points (controllers, queue workers, cron) → injected classes → methods, JSDoc, thrown error codes, touched tables, queue boundaries, and per-request execution paths. Configured entirely by one JSON file; works offline.
+
+```bash
+npx nest-code-explorer --config code-explorer.config.json --open
+```
+
+---
+
 NestJS 프로젝트의 소스를 정적 분석(ts-morph)해서 두 가지를 만든다. 앱을 띄우지 않으며 DB 도 필요 없다.
 
 - **인터랙티브 코드 탐색기** (`code-explorer.html`, 단일 파일·오프라인): 진입점(Controller / Worker)에서 주입 클래스를 클릭으로 펼치는 구조 모드, HTTP 라우트·큐 Job·Cron 한 건이 지나가는 메서드 순서를 그리는 실행 경로 모드, 메서드 시그니처·JSDoc·에러 코드·접근 테이블·호출 관계를 보여 주는 Inspector, 전체 단어 검색
@@ -13,7 +21,7 @@ npx nest-code-explorer --config code-explorer.config.json --open
 npx nest-code-explorer --no-svg          # mermaid SVG 렌더 생략 (빠름)
 ```
 
-이 저장소(push-platform)에서는 `npm run graph:open` 이 이 명령을 부른다.
+설정 파일이 없으면 기본값(`src`, Controller/Service/Repository/Guard 계층, 큐 없음)으로 동작한다.
 
 ## 설정 (`code-explorer.config.json`)
 
@@ -33,7 +41,7 @@ npx nest-code-explorer --no-svg          # mermaid SVG 렌더 생략 (빠름)
 | `externals[]` | 클래스 이름 정규식 → 외부 시스템 라벨. `terminal: true` 면 실행 경로 말단 노드 |
 | `output` | `explorer`, `markdown`, `diagramsDir`. `template` 과 `visNetwork` 는 생략하면 패키지 내장 |
 
-생략한 섹션은 NestJS 표준 관례 기본값을 쓴다(`include: ["src"]`, Controller/Service/Repository/Guard 계층, `HttpException`). 예시는 이 저장소 루트의 `code-explorer.config.json`(manual-router) 과 `fixtures/bullmq-app/code-explorer.config.json`(nestjs-bullmq).
+생략한 섹션은 NestJS 표준 관례 기본값을 쓴다(`include: ["src"]`, Controller/Service/Repository/Guard 계층, `HttpException`). 예시는 `fixtures/bullmq-app/code-explorer.config.json`(nestjs-bullmq). manual-router 예시는 [push-platform 의 설정](https://github.com/whalebanana86)을 참고.
 
 ## 출력 JSON
 
@@ -42,9 +50,16 @@ npx nest-code-explorer --no-svg          # mermaid SVG 렌더 생략 (빠름)
 ## 개발
 
 ```bash
-cd tools/code-explorer && npm run build     # src/analyze.ts → dist/
+npm run build                               # src/analyze.ts → dist/
 npm test                                    # fixtures/bullmq-app 을 분석해 라우트·큐 경계·호출을 검증 (node:test)
 node bin/shot.js <url> <width> <out.png>    # headless Chrome 스크린샷 + 헤더 레이아웃 수치 (반응형 확인)
+```
+
+## 배포
+
+```bash
+npm version patch        # 태그 + 버전
+npm publish --access public   # prepublishOnly 가 build + test 를 먼저 돈다
 ```
 
 라이선스 MIT. vis-network(MIT) 를 HTML 에 인라인한다.

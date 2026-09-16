@@ -1,9 +1,27 @@
 {
   "name": "nest-code-explorer",
   "version": "0.1.0",
-  "description": "NestJS 프로젝트를 정적 분석해 인터랙티브 코드 탐색기(단일 HTML)와 코드 지도(mermaid)를 만든다",
+  "description": "Static code explorer for NestJS: interactive single-file HTML (structure + execution paths) and mermaid code map, generated from source with ts-morph",
+  "keywords": [
+    "nestjs",
+    "code-explorer",
+    "dependency-graph",
+    "call-graph",
+    "static-analysis",
+    "ts-morph",
+    "visualization",
+    "architecture"
+  ],
   "license": "MIT",
-  "private": true,
+  "author": "whalebanana86",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/whalebanana86/nest-code-explorer.git"
+  },
+  "homepage": "https://github.com/whalebanana86/nest-code-explorer#readme",
+  "bugs": {
+    "url": "https://github.com/whalebanana86/nest-code-explorer/issues"
+  },
   "main": "dist/analyze.js",
   "bin": {
     "nest-code-explorer": "bin/cli.js"
@@ -12,11 +30,13 @@
     "bin",
     "dist",
     "template",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "npm run build && node --test test/fixture.test.js"
+    "test": "npm run build && node --test test/fixture.test.js",
+    "prepublishOnly": "npm run build && npm test"
   },
   "engines": {
     "node": ">=20"
@@ -26,6 +46,7 @@
     "vis-network": "^10.1.2"
   },
   "devDependencies": {
+    "@types/node": "^24.13.5",
     "typescript": "^5.7.3"
   }
 }
