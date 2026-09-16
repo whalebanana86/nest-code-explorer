@@ -15,6 +15,10 @@ import { ClassDeclaration, Project, Scope, SourceFile, SyntaxKind } from 'ts-mor
 
 // ---------- 설정 ----------
 type LayerConfig = { name: string; match: string; column?: number; color?: string; entry?: string; skip?: boolean };
+type QueueConfig =
+  | { type?: 'manual-router'; namesFile: string; namesConst: string; routerClass: string }
+  | { type: 'nestjs-bullmq'; processorDecorator?: string; processDecorator?: string; injectQueueDecorator?: string; addMethods?: string[] }
+  | { type: 'none' };
 type Config = {
   include: string[];
   exclude: string[];
@@ -24,7 +28,8 @@ type Config = {
   classDiagramGroups: Record<string, string[]>;
   indexOrder: string[];
   http: { controllerDecorator: string; methodDecorators: string[]; versionDecorator: string; cronDecorator: string };
-  queue: { namesFile: string; namesConst: string; routerClass: string };
+  /** 큐 경계 어댑터. manual-router: Job 이름 상수 + switch 라우터 / nestjs-bullmq: @Processor·@Process·@InjectQueue / none */
+  queue: QueueConfig;
   sql: { fileSuffix: string; objectSuffix: string; tableRegex: string; ignoreTables: string[] };
   orm: { entityFileSuffix: string; entityDecorator: string; injectRepositoryDecorator: string; baseRepositoryMethods: string[] };
   errors: { className: string };
@@ -45,6 +50,32 @@ export type RunOptions = {
 };
 export type RunResult = { explorer: string; markdown: string; classes: number };
 
+/** 생략 가능한 섹션의 기본값 (NestJS 표준 관례) */
+const CONFIG_DEFAULTS: Omit<Config, 'layers'> & { layers: LayerConfig[] } = {
+  include: ['src'],
+  exclude: ['\\.spec\\.ts$', '\\.module\\.ts$'],
+  layers: [
+    { name: 'Controller', match: '\\.controller\\.ts$', column: 0, color: '#2f6fed', entry: 'HTTP (Controller)' },
+    { name: 'Service', match: '\\.service\\.ts$', column: 2, color: '#1d9a6c' },
+    { name: 'Repository', match: '\\.repository\\.ts$', column: 3, color: '#b8741a' },
+    { name: 'Guard', match: '\\.guard\\.ts$', column: 0, color: '#5b6b7a' },
+    { name: 'Entity', match: '\\.entity\\.ts$', skip: true },
+    { name: 'DTO', match: '\\.dto\\.ts$', skip: true },
+    { name: 'Module', match: '\\.module\\.ts$', skip: true },
+  ],
+  defaultLayer: { name: 'Etc', column: 2, color: '#8a8f98' },
+  importGraph: { ignoreTargets: '\\.(dto|entity|types?)\\.ts$' },
+  classDiagramGroups: {},
+  indexOrder: ['Controller', 'Service', 'Repository', 'Guard', 'Etc'],
+  http: { controllerDecorator: 'Controller', methodDecorators: ['Get', 'Post', 'Put', 'Patch', 'Delete'], versionDecorator: 'Version', cronDecorator: 'Cron' },
+  queue: { type: 'none' },
+  sql: { fileSuffix: '.sql.ts', objectSuffix: 'Sql', tableRegex: '\\b(?<!KEY\\s)(?:FROM|JOIN|UPDATE|INTO)\\s+`?([A-Z][A-Z0-9_]+)`?', ignoreTables: ['DUAL'] },
+  orm: { entityFileSuffix: '.entity.ts', entityDecorator: 'Entity', injectRepositoryDecorator: 'InjectRepository', baseRepositoryMethods: [] },
+  errors: { className: 'HttpException' },
+  externals: [],
+  output: { explorer: 'docs/code-explorer.html', markdown: 'docs/code-map.md', diagramsDir: 'docs/diagrams' },
+};
+
 let ROOT = process.cwd();
 let PKG = path.join(__dirname, '..');
 let CFG: Config;
@@ -57,7 +88,8 @@ let externalRules: { re: RegExp; label: string; terminal: boolean }[] = [];
 
 function loadConfig(configPath: string): void {
   if (!existsSync(configPath)) throw new Error(`config not found: ${configPath}`);
-  CFG = JSON.parse(readFileSync(configPath, 'utf8')) as Config;
+  const raw = JSON.parse(readFileSync(configPath, 'utf8')) as Partial<Config>;
+  CFG = { ...CONFIG_DEFAULTS, ...raw, output: { ...CONFIG_DEFAULTS.output, ...(raw.output ?? {}) } } as Config;
   layerRules = CFG.layers.map((l) => ({ ...l, re: new RegExp(l.match) }));
   excludeRes = CFG.exclude.map((e) => new RegExp(e));
   ignoreImportRe = new RegExp(CFG.importGraph.ignoreTargets);
@@ -200,28 +232,96 @@ function main(svg: boolean): RunResult {
     return out;
   };
 
-  // 큐 경계: <namesConst>.X → 'x' 문자열, 라우터 클래스의 case <namesConst>.X → this.<프로세서>.<메서드>()
-  const jobNames: Record<string, string> = {};
-  const namesFile = project.getSourceFile((f) => f.getFilePath().endsWith(CFG.queue.namesFile));
-  const jobObj = namesFile?.getVariableDeclaration(CFG.queue.namesConst)?.getInitializer();
-  if (jobObj?.isKind(SyntaxKind.AsExpression) || jobObj?.isKind(SyntaxKind.ObjectLiteralExpression)) {
-    const lit = jobObj.isKind(SyntaxKind.AsExpression) ? jobObj.getExpression() : jobObj;
-    if (lit.isKind(SyntaxKind.ObjectLiteralExpression))
-      for (const p of lit.getProperties())
-        if (p.isKind(SyntaxKind.PropertyAssignment)) jobNames[p.getName()] = STR(p.getInitializer()?.getText());
-  }
+  // ---------- 큐 경계 어댑터 ----------
+  // jobHandlers: Job 키 → 처리 메서드, jobsOf(method, props): 메서드가 큐에 넣는 Job 키 목록
   const jobHandlers: Record<string, { cls: string; method: string }> = {};
-  const router = classes.find((c) => c.cls.getName() === CFG.queue.routerClass);
-  if (router) {
-    const props = injectedProps(router.cls);
-    for (const cc of router.cls.getDescendantsOfKind(SyntaxKind.CaseClause)) {
-      const expr = cc.getExpression();
-      if (!expr.isKind(SyntaxKind.PropertyAccessExpression) || expr.getExpression().getText() !== CFG.queue.namesConst) continue;
-      const job = jobNames[expr.getName()];
-      const call = cc.getDescendantsOfKind(SyntaxKind.CallExpression).find((k) => /^this\.\w+\.\w+$/.test(k.getExpression().getText()));
-      const [, prop, method] = call?.getExpression().getText().match(/^this\.(\w+)\.(\w+)$/) ?? [];
-      if (job && prop && props[prop]) jobHandlers[job] = { cls: props[prop], method };
+  let jobsOf: (m: import('ts-morph').MethodDeclaration, props: Record<string, string>) => string[] = () => [];
+  const qcfg = CFG.queue;
+  if (!qcfg.type || qcfg.type === 'manual-router') {
+    // 이 프로젝트 방식: `export const JobName = { A: 'a' } as const` + 라우터 클래스의 switch (job.name) { case JobName.A: return this.<프로세서>.<메서드>(job) }
+    const jobNames: Record<string, string> = {};
+    const namesFile = project.getSourceFile((f) => f.getFilePath().endsWith(qcfg.namesFile));
+    const jobObj = namesFile?.getVariableDeclaration(qcfg.namesConst)?.getInitializer();
+    if (jobObj?.isKind(SyntaxKind.AsExpression) || jobObj?.isKind(SyntaxKind.ObjectLiteralExpression)) {
+      const lit = jobObj.isKind(SyntaxKind.AsExpression) ? jobObj.getExpression() : jobObj;
+      if (lit.isKind(SyntaxKind.ObjectLiteralExpression))
+        for (const p of lit.getProperties())
+          if (p.isKind(SyntaxKind.PropertyAssignment)) jobNames[p.getName()] = STR(p.getInitializer()?.getText());
     }
+    const router = classes.find((c) => c.cls.getName() === qcfg.routerClass);
+    if (router) {
+      const props = injectedProps(router.cls);
+      for (const cc of router.cls.getDescendantsOfKind(SyntaxKind.CaseClause)) {
+        const expr = cc.getExpression();
+        if (!expr.isKind(SyntaxKind.PropertyAccessExpression) || expr.getExpression().getText() !== qcfg.namesConst) continue;
+        const job = jobNames[expr.getName()];
+        const call = cc.getDescendantsOfKind(SyntaxKind.CallExpression).find((k) => /^this\.\w+\.\w+$/.test(k.getExpression().getText()));
+        const [, prop, method] = call?.getExpression().getText().match(/^this\.(\w+)\.(\w+)$/) ?? [];
+        if (job && prop && props[prop]) jobHandlers[job] = { cls: props[prop], method };
+      }
+    }
+    jobsOf = (m) => {
+      const out = new Set<string>();
+      for (const pa of m.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression))
+        if (pa.getExpression().getText() === qcfg.namesConst && jobNames[pa.getName()]) out.add(jobNames[pa.getName()]);
+      return [...out];
+    };
+  } else if (qcfg.type === 'nestjs-bullmq') {
+    // @nestjs/bullmq (WorkerHost.process) 와 @nestjs/bull (@Process('name')) 공통:
+    //   핸들러 = @Processor('queue') 클래스의 process() 또는 @Process('name') 메서드 → 키 'queue' 또는 'queue/name'
+    //   생산   = @InjectQueue('queue') 로 주입된 프로퍼티의 .add('name', …) / .addBulk(…)
+    const procDeco = qcfg.processorDecorator ?? 'Processor';
+    const processDeco = qcfg.processDecorator ?? 'Process';
+    const injectDeco = qcfg.injectQueueDecorator ?? 'InjectQueue';
+    const addMethods = qcfg.addMethods ?? ['add', 'addBulk'];
+    const queueNameOf = (argText?: string) => {
+      if (!argText) return '';
+      const named = argText.match(/name\s*:\s*['"`]([^'"`]+)['"`]/);
+      return named ? named[1] : STR(argText);
+    };
+    for (const c of classes) {
+      const d = c.cls.getDecorator(procDeco);
+      if (!d) continue;
+      const q = queueNameOf(d.getArguments()[0]?.getText());
+      if (!q) continue;
+      let any = false;
+      for (const m of c.cls.getMethods()) {
+        const pd = m.getDecorator(processDeco);
+        if (!pd) continue;
+        any = true;
+        const name = queueNameOf(pd.getArguments()[0]?.getText());
+        jobHandlers[name ? `${q}/${name}` : q] = { cls: c.cls.getName()!, method: m.getName() };
+      }
+      if (!any && c.cls.getMethod('process')) jobHandlers[q] = { cls: c.cls.getName()!, method: 'process' };
+    }
+    const queueProps = new Map<ClassDeclaration, Record<string, string>>();
+    const propsOf = (cls: ClassDeclaration) => {
+      if (!queueProps.has(cls)) {
+        const out: Record<string, string> = {};
+        for (const prm of cls.getConstructors()[0]?.getParameters() ?? []) {
+          const d = prm.getDecorator(injectDeco);
+          if (d) out[prm.getName()] = queueNameOf(d.getArguments()[0]?.getText());
+        }
+        queueProps.set(cls, out);
+      }
+      return queueProps.get(cls)!;
+    };
+    jobsOf = (m) => {
+      const out = new Set<string>();
+      const qp = propsOf(m.getParentOrThrow() as ClassDeclaration);
+      for (const call of m.getDescendantsOfKind(SyntaxKind.CallExpression)) {
+        const expr = call.getExpression();
+        if (!expr.isKind(SyntaxKind.PropertyAccessExpression) || !addMethods.includes(expr.getName())) continue;
+        const obj = expr.getExpression();
+        if (!obj.isKind(SyntaxKind.PropertyAccessExpression) || obj.getExpression().getKind() !== SyntaxKind.ThisKeyword) continue;
+        const q = qp[obj.getName()];
+        if (!q) continue;
+        const first = call.getArguments()[0];
+        const name = first?.isKind(SyntaxKind.StringLiteral) ? first.getLiteralValue() : null;
+        out.add(name && jobHandlers[`${q}/${name}`] ? `${q}/${name}` : q);
+      }
+      return [...out];
+    };
   }
 
   // SQL 파일: 쿼리 이름 → 테이블
@@ -285,8 +385,7 @@ function main(svg: boolean): RunResult {
             sql.add('__entity__');
           }
         }
-        for (const pa of m.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression))
-          if (pa.getExpression().getText() === CFG.queue.namesConst && jobNames[pa.getName()]) jobs.add(jobNames[pa.getName()]);
+        for (const j of jobsOf(m, props)) jobs.add(j);
         for (const ne of m.getDescendantsOfKind(SyntaxKind.NewExpression))
           if (ne.getExpression().getText() === CFG.errors.className) { const a = ne.getArguments()[0]; if (a?.isKind(SyntaxKind.StringLiteral)) errors.add(a.getLiteralValue()); }
         const tables = new Set<string>();

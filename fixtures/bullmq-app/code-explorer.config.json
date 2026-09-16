@@ -1,0 +1,15 @@
+{
+  "$comment": "@nestjs/bullmq 관례를 쓰는 최소 프로젝트. 생략한 섹션은 기본값",
+  "include": ["src"],
+  "layers": [
+    { "name": "Controller", "match": "\\.controller\\.ts$", "column": 0, "color": "#2f6fed", "entry": "HTTP" },
+    { "name": "Worker", "match": "\\.processor\\.ts$", "column": 0, "color": "#d1495b", "entry": "Queue" },
+    { "name": "Service", "match": "\\.service\\.ts$", "column": 2, "color": "#1d9a6c" },
+    { "name": "Repository", "match": "\\.repository\\.ts$", "column": 3, "color": "#b8741a" },
+    { "name": "Stub", "match": "stubs\\.ts$", "skip": true }
+  ],
+  "queue": { "type": "nestjs-bullmq" },
+  "errors": { "className": "AppError" },
+  "externals": [{ "match": "^MailProvider$", "label": "SMTP", "terminal": true }],
+  "output": { "explorer": "out/code-explorer.html", "markdown": "out/code-map.md", "diagramsDir": "out" }
+}

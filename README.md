@@ -26,14 +26,14 @@ npx nest-code-explorer --no-svg          # mermaid SVG 렌더 생략 (빠름)
 | `defaultLayer` | 어느 규칙에도 안 맞는 클래스의 계층 |
 | `classDiagramGroups` / `indexOrder` | 코드 지도의 클래스 다이어그램 묶음과 색인 순서 |
 | `http` | `@Controller` / `@Get` … / `@Version` / `@Cron` 데코레이터 이름 |
-| `queue` | Job 이름 상수 객체(`namesConst`)가 있는 파일과, `case <namesConst>.X → this.<프로세서>.<메서드>()` 로 분기하는 라우터 클래스 |
+| `queue` | 큐 경계 어댑터. `type: "nestjs-bullmq"`: `@Processor('q')` 클래스의 `process()` 또는 `@Process('name')` 메서드가 핸들러, `@InjectQueue('q')` 프로퍼티의 `.add('name')`/`.addBulk()` 가 생산 (키 `q` 또는 `q/name`). `type: "manual-router"`: Job 이름 상수 객체(`namesConst`)와 `case <namesConst>.X → this.<프로세서>.<메서드>()` 라우터 클래스. `type: "none"`(기본): 큐 경계 없음 |
 | `sql` | named query 객체 관례(`XxxSql.name()`)와 테이블 추출 정규식 |
 | `orm` | 엔티티 파일·`@Entity`·`@InjectRepository`·BaseRepository 메서드 목록 |
 | `errors.className` | `new AppError('CODE')` 처럼 코드 문자열을 첫 인자로 받는 예외 클래스 |
 | `externals[]` | 클래스 이름 정규식 → 외부 시스템 라벨. `terminal: true` 면 실행 경로 말단 노드 |
 | `output` | `explorer`, `markdown`, `diagramsDir`. `template` 과 `visNetwork` 는 생략하면 패키지 내장 |
 
-예시는 이 저장소 루트의 `code-explorer.config.json`.
+생략한 섹션은 NestJS 표준 관례 기본값을 쓴다(`include: ["src"]`, Controller/Service/Repository/Guard 계층, `HttpException`). 예시는 이 저장소 루트의 `code-explorer.config.json`(manual-router) 과 `fixtures/bullmq-app/code-explorer.config.json`(nestjs-bullmq).
 
 ## 출력 JSON
 
@@ -43,6 +43,7 @@ npx nest-code-explorer --no-svg          # mermaid SVG 렌더 생략 (빠름)
 
 ```bash
 cd tools/code-explorer && npm run build     # src/analyze.ts → dist/
+npm test                                    # fixtures/bullmq-app 을 분석해 라우트·큐 경계·호출을 검증 (node:test)
 node bin/shot.js <url> <width> <out.png>    # headless Chrome 스크린샷 + 헤더 레이아웃 수치 (반응형 확인)
 ```
 
