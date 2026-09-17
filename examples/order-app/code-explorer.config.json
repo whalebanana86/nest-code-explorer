@@ -1,5 +1,6 @@
 {
   "$comment": "order-app 예시 설정. 생략한 키는 기본값. 정규식은 JSON 문자열이라 역슬래시를 두 번 쓴다.",
+  "title": "order-app 코드 탐색기",
   "include": [
     "src"
   ],

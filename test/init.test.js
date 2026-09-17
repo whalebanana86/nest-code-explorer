@@ -47,6 +47,7 @@ test('설정 파일 없이 run: 기본값(큐 없음)으로 분석되고 output 
   assert.equal(res.explorer, path.join(fixture, 'docs/code-explorer.html'));
   assert.ok(fs.existsSync(path.join(fixture, 'docs/code-map.md')));
   const html = fs.readFileSync(res.explorer, 'utf8');
+  assert.match(html, /<h1>bullmq-app · code explorer<\/h1>/); // title 미설정, package.json 도 없음 → 폴더 이름
   const data = JSON.parse(html.match(/const DATA = (\{[\s\S]*?\});\nconst byName/)[1]);
   const names = data.classes.map((c) => c.name);
   // 기본 exclude 는 stubs.ts 를 빼지 않으므로 픽스처 설정(5개)보다 많다. 핵심 클래스와 라우트는 그대로 뽑혀야 한다

@@ -20,6 +20,8 @@ type QueueConfig =
   | { type: 'nestjs-bullmq'; processorDecorator?: string; processDecorator?: string; injectQueueDecorator?: string; addMethods?: string[] }
   | { type: 'none' };
 type Config = {
+  /** 탐색기 제목. 생략하면 package.json 의 name (없으면 폴더 이름) + ' · code explorer' */
+  title?: string;
   include: string[];
   exclude: string[];
   layers: LayerConfig[];
@@ -126,6 +128,17 @@ function loadConfig(configPath?: string): void {
 
 const rel = (f: string) => path.relative(ROOT, f).replace(/\\/g, '/');
 const id = (s: string) => s.replace(/[^A-Za-z0-9_]/g, '_');
+const esc = (s: string) => s.replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch] ?? ch);
+/** 탐색기 제목: 설정 title → package.json name → 폴더 이름 */
+function explorerTitle(): string {
+  if (CFG.title) return CFG.title;
+  let name = path.basename(ROOT);
+  const pkgFile = path.join(ROOT, 'package.json');
+  if (existsSync(pkgFile)) {
+    try { name = (JSON.parse(readFileSync(pkgFile, 'utf8')) as { name?: string }).name || name; } catch { /* 이름 없으면 폴더 */ }
+  }
+  return `${name} · code explorer`;
+}
 
 /** 파일 경로로 계층을 정한다 (설정의 layers 순서대로 첫 매치) */
 function layerOf(file: string): { name: string; skip: boolean } {
@@ -480,6 +493,7 @@ function main(svg: boolean): RunResult {
   const visJs = readFileSync(visPath, 'utf8');
   const explorerHtml = readFileSync(templatePath, 'utf8')
     .replace('__VIS__', () => visJs)
+    .replace(/__TITLE__/g, () => esc(explorerTitle()))
     .replace('__DATA__', () => JSON.stringify(explorerData));
   const explorerOut = path.join(ROOT, CFG.output.explorer);
   mkdirSync(path.dirname(explorerOut), { recursive: true });

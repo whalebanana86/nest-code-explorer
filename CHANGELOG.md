@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.2 (2026-09-17)
+
+- 탐색기 제목이 템플릿에 박혀 있던 것("Push Platform 코드 탐색기")을 설정 `title` → `package.json` name → 폴더 이름 순으로 정한다.
+- README 를 왜 만들었나 · 사용법 · 화면과 기능(스크린샷) 중심으로 다시 썼다. 스크린샷은 `scripts/readme-shots.js` 로 재생성한다.
+
 ## 0.2.1 (2026-09-17)
 
 - `examples/order-app` 예시 프로젝트 추가 (manual-router 큐, RawSQL/TypeORM, cron, AppError, 외부 시스템, Guard). README 의 "push-platform 설정 참고" 를 이 예시로 대체.

@@ -13,6 +13,8 @@ const example = path.join(__dirname, '../examples/order-app');
 test('order-app 예시: 계층·라우트·큐 경계·테이블·에러·외부 시스템·cron', () => {
   const res = run({ cwd: example, configPath: path.join(example, 'code-explorer.config.json'), svg: false });
   const html = fs.readFileSync(res.explorer, 'utf8');
+  assert.match(html, /<title>order-app 코드 탐색기<\/title>/);
+  assert.match(html, /<h1>order-app 코드 탐색기<\/h1>/);
   const data = JSON.parse(html.match(/const DATA = (\{[\s\S]*?\});\nconst byName/)[1]);
   const by = Object.fromEntries(data.classes.map((c) => [c.name, c]));
   const method = (cls, name) => by[cls].methods.find((m) => m.name === name);
