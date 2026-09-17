@@ -30,7 +30,7 @@ NestJS 프로젝트 루트(`tsconfig.json` 이 있는 폴더)에서 한 줄.
 npx nest-code-explorer --open
 ```
 
-설치할 것은 없다. 첫 실행은 npx 가 패키지를 받느라 10초쯤 걸리고, 끝나면 `docs/code-explorer.html` 이 생기고 브라우저가 열린다. `*.controller.ts` / `*.service.ts` / `*.repository.ts` / `*.guard.ts` 관례를 쓰는 프로젝트라면 여기서 끝이다.
+설치할 것은 없다. 첫 실행은 npx 가 패키지를 받느라 10초쯤 걸리고, 끝나면 `docs/code-explorer.html` 이 생기고 브라우저가 열린다. `*.controller.ts` / `*.usecase.ts` / `*.service.ts` / `*.repository.ts` / `*.guard.ts` 관례를 쓰는 프로젝트라면 여기서 끝이다.
 
 ### 2. 잘못 잡힌 게 있으면 설정 파일을 만든다
 
@@ -136,6 +136,18 @@ npx nest-code-explorer --open
 | 요약 패널 (POST /v1/orders, 큐 너머까지 16개 메서드) | cron 진입점 |
 | --- | --- |
 | ![요약](https://raw.githubusercontent.com/whalebanana86/nest-code-explorer/main/docs/screenshots/10-flow-summary.png) | ![cron](https://raw.githubusercontent.com/whalebanana86/nest-code-explorer/main/docs/screenshots/11-flow-cron.png) |
+
+### 큰 프로젝트에서 — 폴더로 펼치기, 초점 모드
+
+클래스가 수백 개면 "전부 펼치기" 는 읽을 수 없는 실뭉치가 된다. 그래서 세 가지를 둔다.
+
+- **폴더로 펼치기**: 구조 모드의 왼쪽 목록은 폴더(`contexts/admin`, `domains/member` 처럼 `src/` 아래 두 단계, `folderDepth` 로 조절)별 클래스 수를 보여 주고, 체크한 폴더의 클래스만 그래프에 올린다. 거기서 노드를 누르면 폴더 밖 의존으로 더 내려간다.
+- **초점 모드** (헤더 `초점` 버튼 또는 왼쪽 체크박스): 고른 노드로 들어오는 것과 거기서 나가는 것만 남기고 나머지는 숨긴다. 다른 노드를 고르면 그 기준으로 다시 잡힌다.
+- **전부 펼치기 임계값**: 클래스가 60개를 넘으면 전부 펼치기 대신 안내를 띄우고 폴더 목록을 연다. 그래도 보고 싶으면 안내의 링크로 펼친다.
+
+| 폴더로 펼치기 (`domains/order`, `domains/payment` 체크) | 초점 모드 (`OrderService` 기준) |
+| --- | --- |
+| ![폴더로 펼치기](https://raw.githubusercontent.com/whalebanana86/nest-code-explorer/main/docs/screenshots/12-folders.png) | ![초점 모드](https://raw.githubusercontent.com/whalebanana86/nest-code-explorer/main/docs/screenshots/13-focus.png) |
 
 ### 그 밖에
 

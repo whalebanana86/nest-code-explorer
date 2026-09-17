@@ -34,16 +34,26 @@
   header button.plain:hover { background: var(--soft); }
   .legend { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-left: auto; font-size: 12px; color: var(--muted); white-space: nowrap; }
   .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 4px; vertical-align: -1px; }
-  main { display: grid; grid-template-columns: 1fr 440px; grid-template-rows: 1fr; flex: 1 1 auto; min-height: 0; overflow: hidden; }
-  main.flow { grid-template-columns: 300px 1fr 440px; }
-  main.no-right { grid-template-columns: 1fr; }
-  main.flow.no-right { grid-template-columns: 300px 1fr; }
-  main.flow.no-left { grid-template-columns: 1fr 440px; }
-  main.flow.no-left.no-right { grid-template-columns: 1fr; }
+  main { display: grid; grid-template-columns: 300px 1fr 440px; grid-template-rows: 1fr; flex: 1 1 auto; min-height: 0; overflow: hidden; position: relative; }
+  main.no-right { grid-template-columns: 300px 1fr; }
+  main.no-left { grid-template-columns: 1fr 440px; }
+  main.no-left.no-right { grid-template-columns: 1fr; }
   main.no-right aside { display: none; }
   main.no-left #entries { display: none !important; }
-  #entries { display: none; border-right: 1px solid var(--line); background: var(--panel); overflow: auto; min-height: 0; }
-  main.flow #entries { display: block; }
+  #entries { display: block; border-right: 1px solid var(--line); background: var(--panel); overflow: auto; min-height: 0; }
+  #entries .f { display: flex; gap: 8px; align-items: center; padding: 4px 12px; cursor: pointer; font-size: 12px; font-family: ui-monospace, Menlo, monospace; }
+  #entries .f:hover { background: var(--soft); }
+  #entries .f input { margin: 0; }
+  #entries .f .nm { flex: 1 1 auto; word-break: break-all; }
+  #entries .f .cnt { color: var(--muted); font-size: 11px; }
+  #entries .fbtns { display: flex; gap: 6px; padding: 8px 12px; }
+  #entries .fbtns button { padding: 3px 8px; border: 1px solid var(--line); background: #fff; border-radius: 6px; font: inherit; font-size: 12px; cursor: pointer; }
+  #entries .fbtns button:hover { background: var(--soft); }
+  #toast { position: absolute; left: 50%; top: 16px; transform: translateX(-50%); background: #1f2530; color: #fff; padding: 10px 14px; border-radius: 8px; font-size: 13px; box-shadow: 0 4px 16px rgba(0,0,0,.2); z-index: 5; max-width: 560px; display: flex; gap: 12px; align-items: center; }
+  #toast[hidden] { display: none; }
+  #toast a { color: #9cc3ff; cursor: pointer; white-space: nowrap; }
+  #toast .x { cursor: pointer; color: #9aa3b2; }
+  header button.plain.on { background: #1f2530; color: #fff; border-color: #1f2530; }
   .panes { display: flex; gap: 4px; }
   .panes button { padding: 5px 8px; border: 1px solid var(--line); background: #fff; border-radius: 6px; font: inherit; font-size: 12px; cursor: pointer; color: var(--muted); }
   .panes button.on { background: var(--soft); color: var(--text); }
@@ -134,22 +144,20 @@
   .steps li .lv { color: var(--muted); }
   @media (max-width: 1400px) { #modeHint { display: none; } }
   @media (max-width: 1200px) {
-    main { grid-template-columns: 1fr 380px; }
-    main.flow { grid-template-columns: 260px 1fr 380px; }
-    main.flow.no-right { grid-template-columns: 260px 1fr; }
-    main.flow.no-left { grid-template-columns: 1fr 380px; }
+    main { grid-template-columns: 260px 1fr 380px; }
+    main.no-right { grid-template-columns: 260px 1fr; }
+    main.no-left { grid-template-columns: 1fr 380px; }
   }
   @media (max-width: 1000px) {
     .legend { display: none; }
-    main { grid-template-columns: 1fr 340px; }
-    main.flow { grid-template-columns: 240px 1fr 340px; }
-    main.flow.no-right { grid-template-columns: 240px 1fr; }
-    main.flow.no-left { grid-template-columns: 1fr 340px; }
+    main { grid-template-columns: 240px 1fr 340px; }
+    main.no-right { grid-template-columns: 240px 1fr; }
+    main.no-left { grid-template-columns: 1fr 340px; }
   }
   @media (max-width: 760px) {
-    main, main.flow, main.flow.no-left { grid-template-columns: 1fr 300px; }
-    main.flow.no-right, main.no-right, main.flow.no-left.no-right { grid-template-columns: 1fr; }
-    main.flow #entries { display: none !important; } /* 아주 좁으면 진입점 목록은 숨기고 그래프·상세만 */
+    main, main.no-left { grid-template-columns: 1fr 300px; }
+    main.no-right, main.no-left.no-right { grid-template-columns: 1fr; }
+    #entries { display: none !important; } /* 아주 좁으면 왼쪽 목록은 숨기고 그래프·상세만 */
   }
 </style>
 </head>
@@ -166,9 +174,10 @@
   </div>
   <button id="expandAll" class="plain">전부 펼치기</button>
   <button id="reset" class="plain">진입점만</button>
-  <span class="hint" id="modeHint">클릭: 선택·펼치기 · 더블클릭: 접기 · 검은 테두리 = 지나온 경로 · 드래그로 이동</span>
+  <button id="focus" class="plain" title="고른 노드로 들어오는 것과 거기서 나가는 것만 남기고 나머지는 숨긴다">초점</button>
+  <span class="hint" id="modeHint">클릭: 선택·펼치기 · 더블클릭: 접기 · 검은 테두리 = 지나온 경로 · 왼쪽: 폴더로 펼치기</span>
   <div class="panes">
-    <button id="toggleLeft" class="on" title="왼쪽 진입점 목록 열기/닫기 (실행 경로 모드)">◧ 목록</button>
+    <button id="toggleLeft" class="on" title="왼쪽 목록 열기/닫기 (구조: 폴더 · 실행 경로: 진입점)">◧ 목록</button>
     <button id="toggleRight" class="on" title="오른쪽 상세 창 열기/닫기">상세 ◨</button>
   </div>
   <div class="legend" id="legend"></div>
@@ -176,6 +185,7 @@
 <main id="main">
   <nav id="entries"></nav>
   <div id="graph"></div>
+  <div id="toast" hidden></div>
   <aside id="panel"><div class="empty">노드를 클릭하면 주입받는 클래스가 펼쳐지고, 여기에 그 클래스의 메서드가 나온다. "실행 경로" 모드에서는 API 나 Job 하나가 지나가는 메서드 순서를 본다.</div></aside>
 </main>
 <script>__VIS__</script>
@@ -216,9 +226,26 @@ function fitAll() { clearTimeout(fitTimer); fitTimer = setTimeout(() => network.
 // 구조 모드: 클래스 노드, 클릭으로 주입 클래스 펼치기
 // =====================================================================
 const expanded = new Set();
+const pinned = new Set(); // 폴더 목록에서 골라 보이게 한 클래스 (접기·초점에서도 유지)
 let selected = null;
 let trail = [];
+let focus = false; // 초점 모드: 고른 노드와 이어진 것만 남긴다
 const manualPos = new Map();
+let EXPAND_ALL_LIMIT = 60; // 이보다 클래스가 많으면 전부 펼치기 대신 폴더 목록을 권한다
+/** 파일 경로 → 폴더 묶음 키 (src/ 를 떼고 folderDepth 단계까지) */
+function folderOf(file) {
+  const parts = file.replace(/^src\//, '').split('/'); parts.pop();
+  return parts.slice(0, DATA.folderDepth ?? 2).join('/') || '(root)';
+}
+const FOLDERS = new Map();
+for (const c of DATA.classes) if (!isEntryLayer(c.layer)) (FOLDERS.get(folderOf(c.file)) ?? FOLDERS.set(folderOf(c.file), []).get(folderOf(c.file))).push(c.name);
+const visibleIds = () => nodes.get().filter((n) => !String(n.id).startsWith('__') && !n.hidden).map((n) => n.id);
+/** 보이는 노드끼리의 의존 간선을 전부 맞춘다 (없는 건 추가, 끝점이 사라진 건 제거) */
+function syncEdges() {
+  const vis = new Set(nodes.getIds().filter((id) => !String(id).startsWith('__')));
+  for (const e of edges.get()) if (!vis.has(e.from) || !vis.has(e.to)) edges.remove(e.id);
+  for (const a of vis) for (const d of byName[a]?.deps ?? []) if (vis.has(d)) { const id = `${a}->${d}`; if (!edges.get(id)) edges.add({ id, from: a, to: d, arrows: 'to' }); }
+}
 function nodeOf(c) {
   return { id: c.name, label: c.name, shape: 'box', margin: 8, borderWidth: 1, font: { color: '#fff', size: 13, face: 'system-ui' },
     color: { background: COLOR[c.layer], border: COLOR[c.layer] }, title: `${c.layer} · ${c.file}:${c.line} · 메서드 ${c.methods.length}개` };
@@ -229,16 +256,18 @@ const HEADERS = [
   { id: '__worker', label: ENTRY_LAYERS.slice(1).map((l) => l.entry).join(' · ') },
 ];
 function relayout() {
-  const visible = new Set(nodes.getIds().filter((id) => !String(id).startsWith('__')));
+  const visible = new Set(visibleIds());
   const cols = new Map(); const seen = new Set();
   const place = (name) => { const col = COL[byName[name].layer] ?? 2; if (!cols.has(col)) cols.set(col, []); cols.get(col).push(name); };
   const bfs = (roots) => {
     const q = roots.filter((r) => visible.has(r) && !seen.has(r)); q.forEach((r) => seen.add(r));
-    while (q.length) { const n = q.shift(); place(n); if (!expanded.has(n)) continue; for (const d of byName[n].deps) if (visible.has(d) && !seen.has(d)) { seen.add(d); q.push(d); } }
+    while (q.length) { const n = q.shift(); place(n); for (const d of byName[n].deps) if (visible.has(d) && !seen.has(d)) { seen.add(d); q.push(d); } }
   };
   const http = entries.filter((e) => byName[e].layer === ENTRY_LAYERS[0]?.name);
   const worker = entries.filter((e) => byName[e].layer !== ENTRY_LAYERS[0]?.name);
   bfs(http); const httpRows = (cols.get(0) ?? []).length; bfs(worker);
+  // 진입점에서 닿지 않는 노드(폴더로 보인 것)도 자기 열에 놓는다
+  bfs([...visible].filter((n) => !seen.has(n)).sort());
   const rowY = new Map();
   (cols.get(0) ?? []).forEach((name, i) => rowY.set(name, i * ROW_GAP + (i >= httpRows ? GROUP_GAP : 0)));
   const parentsOf = (name) => edges.get().filter((e) => e.to === name && rowY.has(e.from)).map((e) => rowY.get(e.from));
@@ -254,7 +283,7 @@ function relayout() {
   for (const [col, list] of cols) for (const name of list) updates.push(manualPos.has(name) ? { id: name, ...manualPos.get(name) } : { id: name, x: col * COL_GAP, y: rowY.get(name) });
   edges.update(edges.get().map((e) => { const same = (COL[byName[e.from]?.layer] ?? 2) === (COL[byName[e.to]?.layer] ?? 2); return { id: e.id, smooth: same ? { enabled: true, type: 'curvedCW', roundness: 0.35 } : { enabled: true, type: 'cubicBezier', forceDirection: 'horizontal', roundness: 0.4 } }; }));
   const headerNode = (h, y) => ({ id: h.id, label: h.label, shape: 'text', x: 0, y, font: { size: 12, color: '#6b7380' }, chosen: false });
-  updates.push(headerNode(HEADERS[0], -ROW_GAP * 0.8));
+  if (http.some((h) => visible.has(h))) updates.push(headerNode(HEADERS[0], -ROW_GAP * 0.8)); else if (nodes.get('__http')) nodes.remove('__http');
   if (worker.some((w) => visible.has(w))) updates.push(headerNode(HEADERS[1], httpRows * ROW_GAP + GROUP_GAP - ROW_GAP * 0.8)); else if (nodes.get('__worker')) nodes.remove('__worker');
   for (const u of updates) if (nodes.get(u.id)) nodes.update(u); else nodes.add(u);
   restyle();
@@ -280,21 +309,69 @@ function restyle() {
     return { id: e.id, color: { color: on ? base : mix(base, BG, 0.65), highlight: base, hover: base }, width: strong ? 2 : on ? 1.5 : 1 };
   }));
 }
-function expand(name) { const c = byName[name]; if (!c) return; expanded.add(name); for (const d of c.deps) { addNode(d); const id = `${name}->${d}`; if (!edges.get(id)) edges.add({ id, from: name, to: d, arrows: 'to' }); } relayout(); fitAll(); }
+function expand(name) { const c = byName[name]; if (!c) return; expanded.add(name); for (const d of c.deps) addNode(d); syncEdges(); applyFocus(); relayout(); fitAll(); }
 function collapse(name) {
   expanded.delete(name);
-  const keep = new Set(entries); const stack = [...entries];
+  const keep = new Set([...entries, ...pinned]); const stack = [...keep];
   while (stack.length) { const n = stack.pop(); if (!expanded.has(n)) continue; for (const d of byName[n].deps) if (!keep.has(d)) { keep.add(d); stack.push(d); } }
   for (const n of nodes.getIds()) if (!String(n).startsWith('__') && !keep.has(n)) { nodes.remove(n); expanded.delete(n); }
-  for (const e of edges.get()) if (!keep.has(e.from) || !keep.has(e.to) || !expanded.has(e.from)) edges.remove(e.id);
-  relayout(); fitAll();
+  syncEdges(); applyFocus(); relayout(); fitAll();
 }
-function reset() { nodes.clear(); edges.clear(); expanded.clear(); selected = null; trail = []; manualPos.clear(); entries.forEach(addNode); relayout(); fitAll(); }
-function expandAll() {
+function reset() { nodes.clear(); edges.clear(); expanded.clear(); pinned.clear(); selected = null; trail = []; manualPos.clear(); entries.forEach(addNode); renderFolders(); relayout(); fitAll(); }
+function expandAll(force) {
+  if (!force && DATA.classes.length > EXPAND_ALL_LIMIT) {
+    panes.left = true; applyPanes();
+    toast(`클래스가 ${DATA.classes.length}개라 전부 펼치면 읽을 수 없습니다. 왼쪽 폴더 목록에서 골라 펼치거나 노드를 눌러 내려가세요.`, '그래도 펼치기', () => expandAll(true));
+    return;
+  }
   nodes.clear(); edges.clear(); expanded.clear(); selected = null; trail = []; manualPos.clear(); entries.forEach(addNode);
   const q = [...entries]; const seen = new Set();
-  while (q.length) { const n = q.pop(); if (seen.has(n)) continue; seen.add(n); expanded.add(n); for (const d of byName[n].deps) { addNode(d); const id = `${n}->${d}`; if (!edges.get(id)) edges.add({ id, from: n, to: d, arrows: 'to' }); q.push(d); } }
-  relayout(); fitAll();
+  while (q.length) { const n = q.pop(); if (seen.has(n)) continue; seen.add(n); expanded.add(n); for (const d of byName[n].deps) { addNode(d); q.push(d); } }
+  syncEdges(); relayout(); fitAll();
+}
+/** 폴더 목록에서 고른 폴더의 클래스를 보이게 한다 (진입점 + 고른 폴더 + 이미 펼친 것) */
+function showFolders() {
+  pinned.clear();
+  for (const el of document.querySelectorAll('#entries .f input:checked')) for (const n of FOLDERS.get(el.dataset.f) ?? []) pinned.add(n);
+  const keep = new Set([...entries, ...pinned]); const stack = [...keep];
+  while (stack.length) { const n = stack.pop(); if (!expanded.has(n)) continue; for (const d of byName[n].deps) if (!keep.has(d)) { keep.add(d); stack.push(d); } }
+  for (const n of nodes.getIds()) if (!String(n).startsWith('__') && !keep.has(n)) { nodes.remove(n); expanded.delete(n); }
+  for (const n of keep) addNode(n);
+  syncEdges(); applyFocus(); relayout(); fitAll();
+}
+/** 초점 모드: 고른 노드로 들어오는 것 + 거기서 나가는 것만 남긴다 (나머지는 hidden) */
+function applyFocus() {
+  const ids = nodes.getIds().filter((id) => !String(id).startsWith('__'));
+  let keep = null;
+  if (focus && selected && nodes.get(selected)) {
+    keep = new Set([selected]); const es = edges.get();
+    let q = [selected]; while (q.length) { const n = q.shift(); for (const e of es) if (e.to === n && !keep.has(e.from)) { keep.add(e.from); q.push(e.from); } }
+    q = [selected]; while (q.length) { const n = q.shift(); for (const e of es) if (e.from === n && !keep.has(e.to)) { keep.add(e.to); q.push(e.to); } }
+  }
+  const updates = ids.map((id) => ({ id, hidden: keep ? !keep.has(id) : false })).filter((u) => !!nodes.get(u.id).hidden !== u.hidden);
+  if (updates.length) nodes.update(updates);
+}
+function setFocus(on) { focus = on; document.getElementById('focus').classList.toggle('on', on); const cb = document.getElementById('focusMode'); if (cb) cb.checked = on; applyFocus(); relayout(); fitAll(); }
+let toastTimer = null;
+function toast(msg, actionLabel, action) {
+  const el = document.getElementById('toast'); clearTimeout(toastTimer);
+  el.innerHTML = `<span>${esc(msg)}</span>${actionLabel ? `<a id="toastAct">${esc(actionLabel)}</a>` : ''}<span class="x" id="toastX">✕</span>`; el.hidden = false;
+  el.querySelector('#toastX').addEventListener('click', () => { el.hidden = true; });
+  if (action) el.querySelector('#toastAct').addEventListener('click', () => { el.hidden = true; action(); });
+  toastTimer = setTimeout(() => { el.hidden = true; }, 8000);
+}
+/** 구조 모드 왼쪽 창: 초점 모드 토글 + 폴더 목록(체크하면 그 폴더의 클래스가 그래프에 보인다) */
+function renderFolders() {
+  const nav = document.getElementById('entries');
+  const list = [...FOLDERS.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  nav.innerHTML = `<div class="opts"><label><input type="checkbox" id="focusMode" ${focus ? 'checked' : ''}> 초점 모드 — 고른 노드와 이어진 것만</label></div>
+    <h3>폴더로 펼치기 (${DATA.classes.length}개 클래스)</h3>
+    <div class="fbtns"><button id="fAll">모두</button><button id="fNone">해제</button></div>` +
+    list.map(([f, names]) => `<label class="f"><input type="checkbox" data-f="${esc(f)}" ${names.some((n) => pinned.has(n)) ? 'checked' : ''}><span class="nm">${esc(f)}</span><span class="cnt">${names.length}</span></label>`).join('');
+  nav.querySelectorAll('.f input').forEach((el) => el.addEventListener('change', showFolders));
+  nav.querySelector('#fAll').addEventListener('click', () => { nav.querySelectorAll('.f input').forEach((el) => { el.checked = true; }); showFolders(); });
+  nav.querySelector('#fNone').addEventListener('click', () => { nav.querySelectorAll('.f input').forEach((el) => { el.checked = false; }); showFolders(); });
+  nav.querySelector('#focusMode').addEventListener('change', (e) => setFocus(e.target.checked));
 }
 function findVisiblePath(target) {
   const out = new Map();
@@ -319,7 +396,7 @@ function updateTrail(name) {
 function goTo(name, method) {
   if (!byName[name]) return;
   if (mode !== 'structure') setMode('structure');
-  if (!nodes.get(name)) { const path = findPath(name); if (path) path.slice(0, -1).forEach((n) => { if (!expanded.has(n)) expand(n); }); else { addNode(name); relayout(); } }
+  if (!nodes.get(name)) { const path = findPath(name); if (path) path.slice(0, -1).forEach((n) => { if (!expanded.has(n)) expand(n); }); else { addNode(name); pinned.add(name); syncEdges(); relayout(); } }
   network.selectNodes([name]); showClass(name, method); fitAll();
 }
 
@@ -340,7 +417,7 @@ function methodBadges(m) {
 }
 function showClass(name, focusMethod) {
   const c = byName[name]; if (!c) return;
-  if (mode === 'structure') { selected = name; updateTrail(name); restyle(); }
+  if (mode === 'structure') { selected = name; updateTrail(name); if (focus) { applyFocus(); relayout(); fitAll(); } else restyle(); }
   // 노드를 고를 때는 항상 Overview 로 시작한다. 메서드로 직접 이동(검색·호출 목록·실행 경로 노드)할 때만 Methods 상세
   if (insp.cls !== name) insp.query = '';
   insp.cls = name; insp.tab = 'overview'; insp.method = null;
@@ -571,7 +648,8 @@ function setMode(next) {
   document.getElementById('modeFlow').classList.toggle('on', mode === 'flow');
   document.getElementById('expandAll').hidden = mode === 'flow';
   document.getElementById('reset').hidden = mode === 'flow';
-  document.getElementById('modeHint').textContent = mode === 'flow' ? '왼쪽에서 API·Job·Cron 을 고르면 그 한 건이 지나가는 메서드 순서가 그려진다' : '클릭: 선택·펼치기 · 더블클릭: 접기 · 검은 테두리 = 지나온 경로 · 드래그로 이동';
+  document.getElementById('focus').hidden = mode === 'flow';
+  document.getElementById('modeHint').textContent = mode === 'flow' ? '왼쪽에서 API·Job·Cron 을 고르면 그 한 건이 지나가는 메서드 순서가 그려진다' : '클릭: 선택·펼치기 · 더블클릭: 접기 · 검은 테두리 = 지나온 경로 · 왼쪽: 폴더로 펼치기';
   nodes.clear(); edges.clear();
   setTimeout(() => network.redraw(), 0);
   if (mode === 'flow') { renderEntries(); const first = flowEntry ?? FLOW_ENTRIES[0]; if (first) showFlow(first.cls, first.method); } else reset();
@@ -585,7 +663,6 @@ function applyPanes() {
   main.classList.toggle('no-right', !panes.right);
   document.getElementById('toggleLeft').classList.toggle('on', panes.left);
   document.getElementById('toggleRight').classList.toggle('on', panes.right);
-  document.getElementById('toggleLeft').disabled = mode !== 'flow';
   try { localStorage.setItem('explorer.panes', JSON.stringify(panes)); } catch {}
   setTimeout(() => { network.redraw(); fitAll(); }, 0);
 }
@@ -596,7 +673,7 @@ document.getElementById('modeFlow').addEventListener('click', () => setMode('flo
 network.on('click', (p) => {
   const id = p.nodes[0];
   if (mode === 'flow') { if (id) selectFlowNode(id); else { flowSelected = null; flowRestyle(); showFlowSummary(); } return; }
-  if (!id) { selected = null; trail = []; restyle(); return; }
+  if (!id) { selected = null; trail = []; if (focus) { applyFocus(); relayout(); fitAll(); } else restyle(); return; }
   if (String(id).startsWith('__')) return;
   if (!expanded.has(id)) expand(id); // 이미 펼쳐진 노드는 그대로 두고 선택만 (접기는 더블클릭)
   showClass(id);
@@ -610,8 +687,9 @@ network.on('doubleClick', (p) => {
 network.on('hoverNode', (p) => { if (!String(p.node).startsWith('__')) document.body.style.cursor = 'pointer'; });
 network.on('blurNode', () => { document.body.style.cursor = 'default'; });
 network.on('dragEnd', (p) => { if (mode !== 'structure') return; for (const id of p.nodes) { if (String(id).startsWith('__')) continue; manualPos.set(id, network.getPositions([id])[id]); } });
-document.getElementById('expandAll').addEventListener('click', expandAll);
+document.getElementById('expandAll').addEventListener('click', () => expandAll(false));
 document.getElementById('reset').addEventListener('click', reset);
+document.getElementById('focus').addEventListener('click', () => setFocus(!focus));
 
 // ---- 검색: 클래스·메서드·설명·파라미터·호출 대상·파일·라우트·테이블·에러코드 ----
 const INDEX = [];

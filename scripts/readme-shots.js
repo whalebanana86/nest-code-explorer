@@ -80,6 +80,16 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   await page.evaluate(() => { goTo('OrderService', 'findDetail'); });
   await shot('07-inspector-method.png', '#panel');
 
+  // 5b) 폴더로 펼치기 + 초점 모드
+  await page.reload({ waitUntil: 'networkidle0' }); // 검색·상세 창 상태를 비운다
+  await page.evaluate(() => { panes.left = true; applyPanes(); });
+  await sleep(500);
+  await page.evaluate(() => { for (const cb of document.querySelectorAll('#entries .f input')) if (/domains\/(order|payment)/.test(cb.dataset.f)) { cb.checked = true; cb.dispatchEvent(new Event('change')); } });
+  await shot('12-folders.png');
+  await page.evaluate(() => { goTo('OrderService'); setFocus(true); });
+  await shot('13-focus.png');
+  await page.evaluate(() => { setFocus(false); reset(); });
+
   // 6) 실행 경로 모드: POST /v1/orders 가 큐 너머 Worker 까지
   await page.setViewport({ width: 1800, height: 820, deviceScaleFactor: 2 });
   await page.evaluate(() => { setMode('flow'); });
