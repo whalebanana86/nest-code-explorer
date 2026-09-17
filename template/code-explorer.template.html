@@ -478,6 +478,27 @@ function buildFlow(cls, method) {
   }
   return { fn, fe, level };
 }
+/** 테이블 노드 원통. vis 의 'database' 는 라벨이 길수록 높이도 같이 커져 겹치고 글자 양끝이 잘리므로 높이를 고정해 직접 그린다 */
+function tableRenderer({ ctx, id, x, y, style, label }) {
+  const font = nodes.get(id)?.font ?? {};
+  ctx.font = `${font.size ?? 12}px ${font.face ?? 'system-ui'}`;
+  const tw = ctx.measureText(label).width;
+  const w = Math.max(72, tw + 28), h = 30, ry = 6;
+  const drawNode = () => {
+    const top = y - h / 2, bottom = y + h / 2, l = x - w / 2, r = x + w / 2;
+    ctx.lineWidth = style.borderWidth || 1; ctx.strokeStyle = style.borderColor; ctx.fillStyle = style.color;
+    ctx.beginPath();
+    ctx.moveTo(l, top); ctx.lineTo(l, bottom);
+    ctx.ellipse(x, bottom, w / 2, ry, 0, Math.PI, 0, true);
+    ctx.lineTo(r, top);
+    ctx.ellipse(x, top, w / 2, ry, 0, 0, Math.PI, false);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(x, top, w / 2, ry, 0, 0, Math.PI * 2); ctx.fillStyle = mix(style.color, '#ffffff', 0.18); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = font.color ?? '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(label, x, y + ry / 2);
+  };
+  return { drawNode, nodeDimensions: { width: w, height: h + ry * 2 } };
+}
 function showFlow(cls, method) {
   flowEntry = { cls, method }; flowSelected = null; renderEntries();
   const { fn, fe, level } = buildFlow(cls, method); flowLevels = level; flowMeta = fn;
@@ -492,13 +513,13 @@ function showFlow(cls, method) {
     const keyY = new Map(list.map((id, i) => { const p = ps(id); return [id, p.length ? p.reduce((a, b) => a + b, 0) / p.length : i * ROW_GAP]; }));
     list.sort((a, b) => keyY.get(a) - keyY.get(b));
     // 원통(테이블) 노드는 키가 커서 더 띄운다
-    let cur = -Infinity; for (const id of list) { const gap = fn.get(id).kind === 'table' ? ROW_GAP * 1.9 : ROW_GAP; cur = Math.max(keyY.get(id), cur + gap); y.set(id, cur); }
+    let cur = -Infinity; for (const id of list) { const gap = fn.get(id).kind === 'table' ? ROW_GAP * 1.15 : ROW_GAP; cur = Math.max(keyY.get(id), cur + gap); y.set(id, cur); }
   }
   nodes.add([...fn.values()].map((n) => {
     const base = COLOR[n.layer] ?? COLOR.Etc;
-    const shape = n.kind === 'table' ? 'database' : n.kind ? 'ellipse' : 'box';
+    const shape = n.kind === 'table' ? 'custom' : n.kind ? 'ellipse' : 'box';
     const label = n.kind ? n.label : `${n.cls}\n.${n.method}()${n.inherited ? '\n(BaseRepository)' : ''}`;
-    return { id: n.id, label, shape, margin: 8, x: level.get(n.id) * 280, y: y.get(n.id), borderWidth: 1, font: { color: '#fff', size: 12, face: 'system-ui' }, color: { background: base, border: base }, title: n.kind ? n.label : `${n.cls}.${n.method}` };
+    return { id: n.id, label, shape, ...(shape === 'custom' ? { ctxRenderer: tableRenderer } : {}), margin: 8, x: level.get(n.id) * 280, y: y.get(n.id), borderWidth: 1, font: { color: '#fff', size: 12, face: 'system-ui' }, color: { background: base, border: base }, title: n.kind ? n.label : `${n.cls}.${n.method}` };
   }));
   edges.add(fe.map((e) => ({ ...e, width: 1.5, font: { size: 10, color: '#6b7380', align: 'top' } })));
   flowRestyle(); showFlowSummary(); fitAll();
