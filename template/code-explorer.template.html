@@ -69,7 +69,7 @@
   #entries .e .sub { color: var(--muted); font-size: 11px; }
   #graphWrap { position: relative; min-height: 0; overflow: hidden; }
   #graph { background: var(--bg); height: 100%; min-height: 0; overflow: hidden; }
-  #minimap { position: absolute; right: 12px; bottom: 12px; width: 200px; height: 140px; background: rgba(255,255,255,.92); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,.08); cursor: pointer; z-index: 4; }
+  #minimap { position: absolute; right: 12px; bottom: 12px; width: 260px; height: 180px; background: rgba(255,255,255,.92); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,.08); cursor: pointer; z-index: 4; }
   #minimap[hidden] { display: none; }
   aside { border-left: 1px solid var(--line); background: var(--panel); min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
   aside .badge { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 10px; color: #fff; margin-right: 6px; vertical-align: 2px; }
@@ -190,7 +190,7 @@
   <div id="graphWrap">
     <div id="graph"></div>
     <div id="toast" hidden></div>
-    <canvas id="minimap" width="400" height="280" hidden title="전체 그래프 · 밝은 사각형이 지금 보는 영역. 누르거나 끌어서 이동"></canvas>
+    <canvas id="minimap" width="520" height="360" hidden title="전체 그래프 · 밝은 사각형이 지금 보는 영역. 누르거나 끌어서 이동"></canvas>
   </div>
   <aside id="panel"><div class="empty">노드를 클릭하면 주입받는 클래스가 펼쳐지고, 여기에 그 클래스의 메서드가 나온다. "실행 경로" 모드에서는 API 나 Job 하나가 지나가는 메서드 순서를 본다.</div></aside>
 </main>
@@ -208,6 +208,8 @@ const isEntryLayer = (name) => ENTRY_LAYERS.some((l) => l.name === name);
 document.getElementById('legend').innerHTML = [...DATA.layers.filter((l) => DATA.classes.some((c) => c.layer === l.name)).map((l) => [l.name, l.color]), ['테이블', COLOR.Table], ['외부·큐', COLOR.External]]
   .map(([n, c]) => `<span><i style="background:${c}"></i>${n}</span>`).join('');
 const BG = '#f6f7f9';
+const METHOD_COLOR = { GET: '#1f7ed6', POST: '#23a36f', PUT: '#e0891a', PATCH: '#2bb8a3', DELETE: '#d63b3b', HEAD: '#6b7380', OPTIONS: '#6b7380' };
+const verbColor = (kind, verb) => kind === 'http' ? (METHOD_COLOR[verb] ?? ENTRY_LAYERS[0]?.color ?? '#2f6fed') : (ENTRY_LAYERS[1]?.color ?? '#d1495b');
 function mix(a, b, t) { const p = (h) => { if (h.length === 4) h = '#' + [...h.slice(1)].map((c) => c + c).join(''); return [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)); }; const [x, y] = [p(a), p(b)]; return '#' + x.map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, '0')).join(''); }
 function esc(s) { return String(s).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch])); }
 const entryRank = (layer) => ENTRY_LAYERS.findIndex((l) => l.name === layer);
@@ -226,7 +228,7 @@ const network = new vis.Network(document.getElementById('graph'), { nodes, edges
 });
 let mode = 'structure';
 let fitTimer = null;
-const MIN_SCALE = 0.65; // 이보다 작아지면 노드 글자를 읽을 수 없으므로 전체 맞춤 대신 왼쪽 위부터 보여 주고 미니맵으로 나머지를 안내한다
+const MIN_SCALE = 0.95; // 이보다 작아지면 노드 글자를 읽을 수 없으므로 전체 맞춤 대신 왼쪽 위부터 보여 주고 미니맵으로 나머지를 안내한다
 const NODE_W = 170, NODE_H = 36; // 좌표는 노드 중심이므로 경계 계산에 더할 여유
 const shownIds = () => nodes.get().filter((n) => !n.hidden).map((n) => n.id);
 function bboxOf(ids) {
@@ -242,7 +244,7 @@ function fitAll() {
   fitTimer = setTimeout(() => {
     const ids = shownIds(); const b = bboxOf(ids); if (!b) return;
     const { w, h } = viewSize(); const pad = 30;
-    let scale = Math.min(1, (w - pad * 2) / (b.maxX - b.minX), (h - pad * 2) / (b.maxY - b.minY));
+    let scale = Math.min(1.2, (w - pad * 2) / (b.maxX - b.minX), (h - pad * 2) / (b.maxY - b.minY));
     let position = { x: (b.minX + b.maxX) / 2, y: (b.minY + b.maxY) / 2 };
     if (scale < MIN_SCALE) { scale = MIN_SCALE; position = { x: b.minX - pad + w / scale / 2, y: b.minY - pad + h / scale / 2 }; }
     network.moveTo({ scale, position, animation: { duration: 250, easingFunction: 'easeInOutQuad' } });
@@ -276,7 +278,7 @@ function drawMinimap() {
   const k = Math.min((W - P * 2) / (vx - ux), (H - P * 2) / (vy - uy));
   const ox = P + ((W - P * 2) - (vx - ux) * k) / 2, oy = P + ((H - P * 2) - (vy - uy) * k) / 2;
   const tx = (x) => ox + (x - ux) * k, ty = (y) => oy + (y - uy) * k;
-  mmMap = { k, ux, uy, ox, oy };
+  mmMap = { k, ux, uy, ox, oy, view };
   const ctx = $mm.getContext('2d'); ctx.clearRect(0, 0, W, H);
   const pos = network.getPositions(ids);
   for (const id of ids) {
@@ -291,10 +293,26 @@ function drawMinimap() {
   ctx.fillRect(rx, ry, rw, rh); ctx.strokeRect(rx, ry, rw, rh);
 }
 function mmToGraph(ev) { const r = $mm.getBoundingClientRect(); const x = (ev.clientX - r.left) * ($mm.width / r.width), y = (ev.clientY - r.top) * ($mm.height / r.height); return { x: mmMap.ux + (x - mmMap.ox) / mmMap.k, y: mmMap.uy + (y - mmMap.oy) / mmMap.k }; }
-let mmDrag = false;
-$mm.addEventListener('mousedown', (ev) => { if (!mmMap) return; mmDrag = true; network.moveTo({ position: mmToGraph(ev), animation: false }); drawMinimap(); ev.preventDefault(); });
-window.addEventListener('mousemove', (ev) => { if (mmDrag && mmMap) { network.moveTo({ position: mmToGraph(ev), animation: false }); drawMinimap(); } });
-window.addEventListener('mouseup', () => { mmDrag = false; });
+// 보는 영역 사각형 안에서 누르면 점프 없이 끌고(포인터 이동의 절반 속도), 밖을 누르면 그곳으로 부드럽게 이동
+const MM_DRAG_SPEED = 0.5;
+let mmDrag = null; // { last: {x,y} }
+$mm.addEventListener('mousedown', (ev) => {
+  if (!mmMap) return; ev.preventDefault();
+  const g = mmToGraph(ev); const v = mmMap.view;
+  if (g.x >= v.minX && g.x <= v.maxX && g.y >= v.minY && g.y <= v.maxY) mmDrag = { last: { x: ev.clientX, y: ev.clientY } };
+  else { network.moveTo({ position: g, animation: { duration: 300, easingFunction: 'easeInOutQuad' } }); setTimeout(drawMinimap, 320); }
+});
+let mmRaf = 0;
+window.addEventListener('mousemove', (ev) => {
+  if (!mmDrag || !mmMap) return;
+  const r = $mm.getBoundingClientRect(); const px = $mm.width / r.width; // CSS px → 캔버스 px
+  const dx = (ev.clientX - mmDrag.last.x) * px / mmMap.k * MM_DRAG_SPEED, dy = (ev.clientY - mmDrag.last.y) * px / mmMap.k * MM_DRAG_SPEED;
+  mmDrag.last = { x: ev.clientX, y: ev.clientY };
+  const c = network.getViewPosition();
+  network.moveTo({ position: { x: c.x + dx, y: c.y + dy }, animation: false });
+  if (!mmRaf) mmRaf = requestAnimationFrame(() => { mmRaf = 0; drawMinimap(); });
+});
+window.addEventListener('mouseup', () => { mmDrag = null; });
 network.on('dragEnd', drawMinimap); network.on('zoom', drawMinimap); network.on('animationFinished', drawMinimap);
 network.on('dragging', (p) => { if (!p.nodes.length) drawMinimap(); });
 window.addEventListener('resize', () => setTimeout(drawMinimap, 100));
@@ -486,7 +504,7 @@ const layerColor = (name) => COLOR[byName[name]?.layer] ?? COLOR.Etc;
 function splitParam(p) { const i = p.indexOf(': '); return i < 0 ? { name: p, type: '' } : { name: p.slice(0, i), type: p.slice(i + 2) }; }
 function methodBadges(m) {
   return [
-    m.route ? `<span class="kw route">${esc(m.route.method)} ${esc(m.route.path)}</span>` : '',
+    m.route ? `<span class="kw route" style="color:${METHOD_COLOR[m.route.method] ?? 'var(--controller)'};background:${mix(METHOD_COLOR[m.route.method] ?? '#2f6fed', '#ffffff', 0.88)}">${esc(m.route.method)} ${esc(m.route.path)}</span>` : '',
     m.cron ? `<span class="kw cron">cron ${esc(m.cron)}</span>` : '',
     m.isAsync ? '<span class="kw">async</span>' : '',
     m.scope !== 'public' ? `<span class="kw">${esc(m.scope)}</span>` : '',
@@ -541,7 +559,7 @@ function renderMethodList(c) {
   return `
     <input class="msearch" id="msearch" placeholder="Search methods..." value="${esc(insp.query)}" autocomplete="off">
     ${list.length ? `<ul class="mlist">${list.map((m) => `<li data-m="${esc(m.name)}">
-        <span class="nm">${esc(m.name)}${m.scope !== 'public' ? ` <span class="kw">${esc(m.scope)}</span>` : ''}${m.route ? ` <span class="kw route">${esc(m.route.method)}</span>` : ''}${m.cron ? ' <span class="kw cron">cron</span>' : ''}</span>
+        <span class="nm">${esc(m.name)}${m.scope !== 'public' ? ` <span class="kw">${esc(m.scope)}</span>` : ''}${m.route ? ` <span class="kw route" style="color:${METHOD_COLOR[m.route.method] ?? 'var(--controller)'};background:${mix(METHOD_COLOR[m.route.method] ?? '#2f6fed', '#ffffff', 0.88)}">${esc(m.route.method)}</span>` : ''}${m.cron ? ' <span class="kw cron">cron</span>' : ''}</span>
         <span class="chev">›</span>
         ${m.description ? `<span class="d">${esc(m.description.split('\n')[0])}</span>` : ''}
         ${m.returnType ? `<span class="rt">${esc(m.returnType)}</span>` : ''}
@@ -600,7 +618,7 @@ function renderEntries() {
   const nav = document.getElementById('entries');
   nav.innerHTML = `<div class="opts"><label><input type="checkbox" id="crossQueue" ${crossQueue ? 'checked' : ''}> 큐 너머 Worker 처리까지 이어서</label></div>` + [...groups.entries()].map(([g, list]) => `<h3>${esc(g)}</h3>${list.map((e) => {
     const on = flowEntry && flowEntry.cls === e.cls && flowEntry.method === e.method;
-    return `<div class="e ${on ? 'on' : ''}" data-cls="${esc(e.cls)}" data-m="${esc(e.method)}"><span class="verb" style="color:${e.kind === 'http' ? (ENTRY_LAYERS[0]?.color ?? '#2f6fed') : (ENTRY_LAYERS[1]?.color ?? '#d1495b')}">${esc(e.verb)}</span><span><div class="path">${esc(e.label)}</div>${e.sub ? `<div class="sub">${esc(e.sub)}</div>` : ''}</span></div>`;
+    return `<div class="e ${on ? 'on' : ''}" data-cls="${esc(e.cls)}" data-m="${esc(e.method)}"><span class="verb" style="color:${verbColor(e.kind, e.verb)}">${esc(e.verb)}</span><span><div class="path">${esc(e.label)}</div>${e.sub ? `<div class="sub">${esc(e.sub)}</div>` : ''}</span></div>`;
   }).join('')}`).join('');
   nav.querySelectorAll('.e').forEach((el) => el.addEventListener('click', () => showFlow(el.dataset.cls, el.dataset.m)));
   document.getElementById('crossQueue').addEventListener('change', (e) => { crossQueue = e.target.checked; if (flowEntry) showFlow(flowEntry.cls, flowEntry.method); });
@@ -701,7 +719,7 @@ function showFlowSummary() {
   const entry = FLOW_ENTRIES.find((e) => e.cls === flowEntry.cls && e.method === flowEntry.method);
   const order = [...flowMeta.keys()].filter((id) => !flowMeta.get(id).kind).sort((a, b) => flowLevels.get(a) - flowLevels.get(b));
   document.getElementById('panel').innerHTML = `<div class="insp-body flow">
-    <h2 style="font-size:17px;margin:0 0 4px;word-break:break-all"><span class="badge" style="background:${entry?.kind === 'http' ? (ENTRY_LAYERS[0]?.color ?? '#2f6fed') : (ENTRY_LAYERS[1]?.color ?? '#d1495b')}">${esc(entry?.verb ?? '')}</span>${esc(entry?.label ?? '')}</h2>
+    <h2 style="font-size:17px;margin:0 0 4px;word-break:break-all"><span class="badge" style="background:${verbColor(entry?.kind, entry?.verb)}">${esc(entry?.verb ?? '')}</span>${esc(entry?.label ?? '')}</h2>
     ${entry?.sub ? `<div class="file">${esc(entry.sub)}</div>` : ''}
     <div class="summary">
       <div class="row"><span class="k">메서드</span><span>${methods.length}개 · 클래스 ${new Set(methods.map((m) => m.cls)).size}개 · 깊이 ${Math.max(...flowLevels.values())}</span></div>
