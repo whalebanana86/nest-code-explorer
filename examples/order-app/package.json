@@ -1,0 +1,22 @@
+{
+  "name": "order-app-example",
+  "version": "0.0.0",
+  "private": true,
+  "description": "nest-code-explorer 예시 프로젝트: Controller → Usecase → Service → Repository/SQL, manual-router 큐 Worker, cron, 외부 시스템",
+  "scripts": {
+    "explore": "nest-code-explorer --open",
+    "explore:fast": "nest-code-explorer --no-svg --open"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/core": "^11.0.0",
+    "@nestjs/schedule": "^6.0.0",
+    "@nestjs/typeorm": "^11.0.0",
+    "bullmq": "^5.0.0",
+    "typeorm": "^0.3.20"
+  },
+  "devDependencies": {
+    "nest-code-explorer": "^0.2.0",
+    "typescript": "^5.7.3"
+  }
+}

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.1 (2026-09-17)
+
+- `examples/order-app` 예시 프로젝트 추가 (manual-router 큐, RawSQL/TypeORM, cron, AppError, 외부 시스템, Guard). README 의 "push-platform 설정 참고" 를 이 예시로 대체.
+- `test/example.test.js` 가 예시 분석 결과(라우트·큐 경계·테이블·에러·외부·cron)를 고정한다.
+
 ## 0.2.0 (2026-09-17)
 
 - `--init [--force]`: 기본값 전체를 `code-explorer.config.json` 으로 생성 (`$comment` 에 섹션 설명). 이미 있으면 `--force` 없이는 건드리지 않는다.

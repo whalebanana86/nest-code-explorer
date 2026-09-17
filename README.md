@@ -43,20 +43,22 @@ npx nest-code-explorer --no-svg          # mermaid SVG 렌더 생략 (빠름)
 | `externals[]` | 클래스 이름 정규식 → 외부 시스템 라벨. `terminal: true` 면 실행 경로 말단 노드 |
 | `output` | `explorer`, `markdown`, `diagramsDir`. `template` 과 `visNetwork` 는 생략하면 패키지 내장 |
 
-생략한 섹션은 NestJS 표준 관례 기본값을 쓴다(`include: ["src"]`, Controller/Service/Repository/Guard 계층, `HttpException`). 예시는 `fixtures/bullmq-app/code-explorer.config.json`(nestjs-bullmq). manual-router 예시(Job 이름 상수 + switch 라우터, `*.sql.ts` named query, `AppError`, FCM 외부 시스템)는 아래 `code-explorer.config.json` 발췌 참고.
+생략한 섹션은 NestJS 표준 관례 기본값을 쓴다(`include: ["src"]`, Controller/Service/Repository/Guard 계층, `HttpException`).
 
-```jsonc
-{
-  "layers": [
-    { "name": "Controller", "match": "\\.controller\\.ts$", "column": 0, "color": "#2f6fed", "entry": "HTTP (Controller)" },
-    { "name": "Usecase", "match": "\\.usecase\\.ts$", "column": 1, "color": "#7c4dff" },
-    { "name": "Worker", "match": "/worker/.*\\.(processor|manager)\\.ts$", "column": 1, "color": "#d9480f", "entry": "Queue (Worker)" }
-  ],
-  "queue": { "type": "manual-router", "namesFile": "src/domains/push/queue/push-queue.names.ts", "namesConst": "PushJobName", "routerClass": "TenantWorkerManager" },
-  "errors": { "className": "AppError" },
-  "externals": [{ "match": "^Fcm(Provider|Sender)", "label": "FCM", "terminal": true }]
-}
+## 예시 프로젝트
+
+| 경로 | 관례 |
+| --- | --- |
+| [`examples/order-app`](examples/order-app) | Controller → Usecase → Service → Repository/RawSQL, **manual-router** 큐(Job 이름 상수 + switch 라우터, Worker 가 다시 큐에 넣는 2단 경로), cron, `AppError` 코드, 외부 시스템 3종(PG·SMTP·택배사), Guard |
+| [`fixtures/bullmq-app`](fixtures/bullmq-app) | **nestjs-bullmq** 어댑터 최소 예시(`@Processor` / `@InjectQueue`) |
+
+```bash
+git clone https://github.com/whalebanana86/nest-code-explorer.git
+cd nest-code-explorer/examples/order-app
+npx nest-code-explorer --open      # 의존성 설치 없이 소스만 읽어 docs/code-explorer.html 을 만든다
 ```
+
+예시가 README 대로 분석되는지는 `test/example.test.js` 가 고정한다.
 
 ## 출력 JSON
 

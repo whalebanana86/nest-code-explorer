@@ -1,0 +1,121 @@
+{
+  "$comment": "order-app 예시 설정. 생략한 키는 기본값. 정규식은 JSON 문자열이라 역슬래시를 두 번 쓴다.",
+  "include": [
+    "src"
+  ],
+  "exclude": [
+    "\\.spec\\.ts$",
+    "\\.module\\.ts$",
+    "/main\\.ts$"
+  ],
+  "layers": [
+    {
+      "name": "Controller",
+      "match": "\\.controller\\.ts$",
+      "column": 0,
+      "color": "#2f6fed",
+      "entry": "HTTP (Controller)"
+    },
+    {
+      "name": "Usecase",
+      "match": "\\.usecase\\.ts$",
+      "column": 1,
+      "color": "#7a4fd6"
+    },
+    {
+      "name": "Worker",
+      "match": "/worker/",
+      "column": 0,
+      "color": "#d1495b",
+      "entry": "Queue / Cron (Worker)"
+    },
+    {
+      "name": "Service",
+      "match": "\\.service\\.ts$|\\.provider\\.ts$|\\.client\\.ts$",
+      "column": 2,
+      "color": "#1d9a6c"
+    },
+    {
+      "name": "Repository",
+      "match": "\\.repository\\.ts$",
+      "column": 3,
+      "color": "#b8741a"
+    },
+    {
+      "name": "Guard",
+      "match": "\\.guard\\.ts$",
+      "column": 0,
+      "color": "#5b6b7a"
+    },
+    {
+      "name": "SQL",
+      "match": "\\.sql\\.ts$",
+      "skip": true
+    },
+    {
+      "name": "Entity",
+      "match": "\\.entity\\.ts$",
+      "skip": true
+    },
+    {
+      "name": "DTO/Type",
+      "match": "\\.dto\\.ts$|\\.types\\.ts$|app-error\\.ts$",
+      "skip": true
+    }
+  ],
+  "indexOrder": [
+    "Controller",
+    "Usecase",
+    "Worker",
+    "Service",
+    "Repository",
+    "Guard",
+    "Etc"
+  ],
+  "classDiagramGroups": {
+    "api-orders": [
+      "OrdersController",
+      "OrdersUsecase",
+      "OrderService",
+      "PaymentService",
+      "OrderQueueService"
+    ],
+    "worker": [
+      "OrderWorkerManager",
+      "ShipmentProcessor",
+      "NotifyProcessor",
+      "CleanupService"
+    ]
+  },
+  "queue": {
+    "type": "manual-router",
+    "namesFile": "src/domains/queue/order-queue.names.ts",
+    "namesConst": "OrderJobName",
+    "routerClass": "OrderWorkerManager"
+  },
+  "errors": {
+    "className": "AppError"
+  },
+  "externals": [
+    {
+      "match": "^PaymentGateway$",
+      "label": "PG API",
+      "terminal": true
+    },
+    {
+      "match": "^MailProvider$",
+      "label": "SMTP",
+      "terminal": true
+    },
+    {
+      "match": "^CarrierClient$",
+      "label": "Carrier API",
+      "terminal": true
+    }
+  ],
+  "output": {
+    "explorer": "docs/code-explorer.html",
+    "markdown": "docs/code-map.md",
+    "diagramsDir": "docs/diagrams"
+  }
+}

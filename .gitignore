@@ -4,3 +4,5 @@ fixtures/*/out/
 *.tgz
 .DS_Store
 fixtures/*/docs/
+examples/*/docs/
+examples/*/node_modules/
