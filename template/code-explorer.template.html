@@ -252,20 +252,24 @@ function fitAll() {
       const fitsX = (b.maxX - b.minX) * scale <= w - pad * 2, fitsY = (b.maxY - b.minY) * scale <= h - pad * 2;
       position = { x: fitsX ? position.x : b.minX - pad + w / scale / 2, y: fitsY ? position.y : b.minY - pad + h / scale / 2 };
     }
-    network.moveTo({ scale, position, animation: { duration: 250, easingFunction: 'easeInOutQuad' } });
+    animatedMoveTo({ scale, position });
     setTimeout(drawMinimap, 300);
   }, 60);
 }
 /** 줌은 그대로 두고, 주어진 노드들이 화면 밖이면 그것들이 들어오도록만 이동한다 (커서 클릭 때 줌아웃 방지). 다 안 들어가면 그만큼만 축소 */
+let viewAnimating = false;
+network.on('animationFinished', () => { viewAnimating = false; });
+function animatedMoveTo(opts) { viewAnimating = true; network.moveTo({ ...opts, animation: { duration: 250, easingFunction: 'easeInOutQuad' } }); setTimeout(() => { viewAnimating = false; }, 400); }
 function reveal(ids) {
   clearTimeout(fitTimer);
+  if (viewAnimating) { network.once('animationFinished', () => reveal(ids)); return; }
   const b = bboxOf(ids.filter((id) => nodes.get(id) && !nodes.get(id).hidden)); if (!b) return;
   const { w, h } = viewSize(); const pad = 30; const cur = network.getScale(); const c = network.getViewPosition();
   const view = { minX: c.x - w / cur / 2, maxX: c.x + w / cur / 2, minY: c.y - h / cur / 2, maxY: c.y + h / cur / 2 };
   const inside = b.minX >= view.minX && b.maxX <= view.maxX && b.minY >= view.minY && b.maxY <= view.maxY;
   if (inside) return;
   const scale = Math.max(MIN_SCALE * 0.8, Math.min(cur, (w - pad * 2) / (b.maxX - b.minX), (h - pad * 2) / (b.maxY - b.minY)));
-  network.moveTo({ scale, position: { x: (b.minX + b.maxX) / 2, y: (b.minY + b.maxY) / 2 }, animation: { duration: 250, easingFunction: 'easeInOutQuad' } });
+  animatedMoveTo({ scale, position: { x: (b.minX + b.maxX) / 2, y: (b.minY + b.maxY) / 2 } });
   setTimeout(drawMinimap, 300);
 }
 // ---- 미니맵: 전체 노드 + 현재 보는 영역. 노드가 화면 밖에 있을 때만 보인다 ----
