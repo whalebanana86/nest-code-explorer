@@ -22,12 +22,52 @@ npx nest-code-explorer --open
 
 ## 사용법
 
+### 1. 일단 실행해 본다
+
+NestJS 프로젝트 루트(`tsconfig.json` 이 있는 폴더)에서 한 줄.
+
 ```bash
-# 프로젝트 루트(tsconfig.json 이 있는 곳)에서
-npx nest-code-explorer --open              # 분석 → docs/code-explorer.html 생성 → 브라우저로 연다
-npx nest-code-explorer --init              # 규약이 다르면: 기본 설정 전체를 code-explorer.config.json 으로 생성
-npx nest-code-explorer --no-svg --open     # mermaid SVG 렌더 생략 (빠름)
+npx nest-code-explorer --open
 ```
+
+설치할 것은 없다. 첫 실행은 npx 가 패키지를 받느라 10초쯤 걸리고, 끝나면 `docs/code-explorer.html` 이 생기고 브라우저가 열린다. `*.controller.ts` / `*.service.ts` / `*.repository.ts` / `*.guard.ts` 관례를 쓰는 프로젝트라면 여기서 끝이다.
+
+### 2. 잘못 잡힌 게 있으면 설정 파일을 만든다
+
+Usecase 나 Worker 같은 계층이 "Etc" 로 뭉치거나, 큐 경계가 안 이어지거나, 에러 코드·테이블·외부 시스템이 안 보이면 프로젝트 규약이 기본값과 다른 것이다. 설정 파일을 만들어 그 부분만 고친다.
+
+```bash
+npx nest-code-explorer --init      # code-explorer.config.json 생성 (기본값 전체 + 각 키 설명)
+```
+
+생성된 파일에서 보통 손대는 키는 넷이다.
+
+| 키 | 언제 고치나 | 예 |
+| --- | --- | --- |
+| `layers[]` | 파일 이름 규칙이 다르거나 계층을 더 나누고 싶을 때 | `{ "name": "Usecase", "match": "\\.usecase\\.ts$", "column": 1, "color": "#7a4fd6" }` |
+| `queue` | 큐를 쓸 때. `nestjs-bullmq`(`@Processor`/`@InjectQueue`) 또는 `manual-router`(Job 이름 상수 + switch 라우터) | `{ "type": "nestjs-bullmq" }` |
+| `errors.className` | `new AppError('CODE')` 처럼 코드 문자열을 첫 인자로 받는 예외 클래스 | `{ "className": "AppError" }` |
+| `externals[]` | 외부 API·SMTP 클라이언트 클래스를 말단 노드로 그리고 싶을 때 | `[{ "match": "^PaymentGateway$", "label": "PG API", "terminal": true }]` |
+
+고친 뒤 다시 실행하면 같은 폴더의 설정 파일을 자동으로 읽는다.
+
+```bash
+npx nest-code-explorer --open
+```
+
+완성된 설정 예시: [`examples/order-app/code-explorer.config.json`](examples/order-app/code-explorer.config.json)(manual-router 큐, RawSQL/TypeORM, `AppError`, 외부 시스템 3종), [`fixtures/bullmq-app/code-explorer.config.json`](fixtures/bullmq-app/code-explorer.config.json)(`@nestjs/bullmq`).
+
+### 3. 코드가 바뀌면 다시 돌린다
+
+탐색기는 실행 시점의 소스를 읽은 정적 결과다. `package.json` 에 넣어 두면 편하다.
+
+```json
+"scripts": { "explore": "nest-code-explorer --no-svg --open" }
+```
+
+`--no-svg` 는 mermaid SVG 렌더(느림)를 빼고 탐색기 HTML 만 만든다. `docs/code-explorer.html` 은 vis-network 가 들어 있어 800KB 쯤 되므로 `.gitignore` 에 넣는 편이 낫다.
+
+### 옵션
 
 | 옵션 | 뜻 |
 | --- | --- |
@@ -37,17 +77,17 @@ npx nest-code-explorer --no-svg --open     # mermaid SVG 렌더 생략 (빠름)
 | `--no-svg` | 코드 지도(mermaid)의 SVG 렌더를 생략한다 |
 | `--cwd <dir>` | 프로젝트 루트 (기본: 현재 디렉터리) |
 
-설정 파일이 없으면 NestJS 표준 관례(`src`, `*.controller.ts` / `*.service.ts` / `*.repository.ts` / `*.guard.ts`, `HttpException`, 큐 없음)로 동작한다. 계층 이름·큐 방식·SQL 관례·에러 클래스·외부 시스템이 다르면 `--init` 으로 파일을 만들고 필요한 줄만 고친다. 모든 키가 생략 가능하고 각 키의 뜻은 생성된 파일의 `$comment` 에 있다.
+생성물: `docs/code-explorer.html`(탐색기, 오프라인에서 열림), `docs/code-map.md`(import 그래프·클래스 다이어그램 mermaid 코드 지도), `docs/diagrams/*.svg`.
 
-설정 예시는 [`examples/order-app/code-explorer.config.json`](examples/order-app/code-explorer.config.json)(Job 이름 상수 + switch 라우터 큐, RawSQL/TypeORM, `AppError`, 외부 시스템)과 [`fixtures/bullmq-app/code-explorer.config.json`](fixtures/bullmq-app/code-explorer.config.json)(`@nestjs/bullmq`) 을 보면 된다. 아래 화면은 전부 `examples/order-app` 을 분석한 것이다.
+### 예시 프로젝트로 먼저 보기
+
+아래 화면은 전부 [`examples/order-app`](examples/order-app) 을 분석한 것이다. 내 프로젝트에 붙이기 전에 어떤 게 나오는지 보고 싶으면 이걸 돌려 본다.
 
 ```bash
 git clone https://github.com/whalebanana86/nest-code-explorer.git
 cd nest-code-explorer/examples/order-app
 npx nest-code-explorer --open
 ```
-
-생성물: `docs/code-explorer.html`(탐색기, vis-network 내장이라 오프라인에서 열림), `docs/code-map.md`(import 그래프·클래스 다이어그램 mermaid 코드 지도), `docs/diagrams/*.svg`.
 
 ## 화면과 기능
 
