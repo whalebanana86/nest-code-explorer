@@ -22,6 +22,8 @@ type QueueConfig =
 type Config = {
   /** 탐색기 제목. 생략하면 package.json 의 name (없으면 폴더 이름) + ' · code explorer' */
   title?: string;
+  /** 파일:줄 ↗ 를 여는 에디터: vscode(기본) | vscode-insiders | cursor | windsurf | zed | webstorm | idea | sublime | copy, 또는 '{path}' '{line}' 을 쓰는 URL 템플릿. 탐색기 헤더에서 바꿀 수도 있다 */
+  editor: string;
   /** 구조 모드 왼쪽 '폴더로 펼치기' 묶음 깊이 (src/ 를 뗀 뒤 몇 단계 폴더까지 한 묶음으로 볼지, 기본 2) */
   folderDepth: number;
   include: string[];
@@ -57,6 +59,7 @@ export type RunResult = { explorer: string; markdown: string; classes: number };
 
 /** 생략 가능한 섹션의 기본값 (NestJS 표준 관례) */
 const CONFIG_DEFAULTS: Omit<Config, 'layers'> & { layers: LayerConfig[] } = {
+  editor: 'vscode',
   folderDepth: 2,
   include: ['src'],
   exclude: ['\\.spec\\.ts$', '\\.module\\.ts$'],
@@ -109,7 +112,7 @@ export function initConfig(file: string, opts: { force?: boolean } = {}): InitRe
   const body = {
     $comment:
       'nest-code-explorer 설정 (npx nest-code-explorer --init 이 만든 기본값). 모든 키는 생략 가능하며 생략하면 이 값이 쓰인다. ' +
-      'include/exclude: 분석 범위(루트 기준 디렉터리, 제외 정규식) · folderDepth: 구조 모드 폴더 묶음 깊이 · layers: 파일 경로 정규식 → 계층·열(column)·색·진입점 그룹(entry)·제외(skip) · ' +
+      'include/exclude: 분석 범위(루트 기준 디렉터리, 제외 정규식) · editor: 파일:줄 링크를 여는 에디터(vscode | cursor | webstorm | idea | … | copy, 또는 {path} {line} URL 템플릿) · folderDepth: 구조 모드 폴더 묶음 깊이 · layers: 파일 경로 정규식 → 계층·열(column)·색·진입점 그룹(entry)·제외(skip) · ' +
       'http: 라우트/버전/cron 데코레이터 이름 · queue: 큐 경계 어댑터 type = none | nestjs-bullmq | manual-router · ' +
       'sql/orm: 테이블 추출 관례 · errors.className: new X(\'CODE\') 형태의 예외 클래스 · externals: 클래스 이름 정규식 → 외부 시스템 라벨(terminal: 말단) · ' +
       'output: 생성 경로. 정규식은 JSON 문자열이라 역슬래시를 두 번 쓴다.',
@@ -491,7 +494,7 @@ function main(svg: boolean): RunResult {
     ...layerRules.filter((l) => !l.skip).map((l) => ({ name: l.name, column: l.column ?? CFG.defaultLayer.column, color: l.color ?? CFG.defaultLayer.color, entry: l.entry ?? null })),
     { name: CFG.defaultLayer.name, column: CFG.defaultLayer.column, color: CFG.defaultLayer.color, entry: null },
   ];
-  const explorerData = { generatedAt: new Date().toISOString(), root: ROOT, folderDepth: CFG.folderDepth, layers: uiLayers, classes: explorerClasses, jobHandlers, baseRepoMethods: BASE_REPO_METHODS };
+  const explorerData = { generatedAt: new Date().toISOString(), root: ROOT, editor: CFG.editor, folderDepth: CFG.folderDepth, layers: uiLayers, classes: explorerClasses, jobHandlers, baseRepoMethods: BASE_REPO_METHODS };
   const visPath = CFG.output.visNetwork ? path.join(ROOT, CFG.output.visNetwork) : require.resolve('vis-network/standalone/umd/vis-network.min.js');
   const templatePath = CFG.output.template ? path.join(ROOT, CFG.output.template) : path.join(PKG, 'template/code-explorer.template.html');
   const visJs = readFileSync(visPath, 'utf8');

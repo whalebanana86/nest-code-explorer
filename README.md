@@ -153,7 +153,7 @@ npx nest-code-explorer --open
 ### 그 밖에
 
 - 헤더의 **◧ 목록 / 상세 ◨** 로 좌우 창을 접을 수 있다. 상태는 브라우저에 저장된다.
-- 파일:줄 옆 `↗` 는 `vscode://` 링크로 에디터를 그 줄에서 연다.
+- 파일:줄 옆 `↗` 는 에디터를 그 줄에서 연다. 헤더의 드롭다운에서 VS Code · Cursor · Windsurf · Zed · WebStorm · IntelliJ · Sublime 중 고르거나 "경로 복사"를 고른다(브라우저에 저장). 기본값은 설정 `editor`(프리셋 이름 또는 `{path}` `{line}` 을 쓰는 URL 템플릿).
 - 화면 폭이 좁으면 헤더가 두 줄로 접힌다.
 
 ## 개발

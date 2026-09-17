@@ -55,6 +55,7 @@
   #toast .x { cursor: pointer; color: #9aa3b2; }
   header button.plain.on { background: #1f2530; color: #fff; border-color: #1f2530; }
   .panes { display: flex; gap: 4px; }
+  #editorSel { padding: 5px 6px; border: 1px solid var(--line); background: #fff; border-radius: 6px; font: inherit; font-size: 12px; color: var(--muted); }
   .panes button { padding: 5px 8px; border: 1px solid var(--line); background: #fff; border-radius: 6px; font: inherit; font-size: 12px; cursor: pointer; color: var(--muted); }
   .panes button.on { background: var(--soft); color: var(--text); }
   .panes button:disabled { opacity: .4; cursor: default; }
@@ -179,6 +180,7 @@
   <button id="reset" class="plain">진입점만</button>
   <button id="focus" class="plain" title="고른 노드로 들어오는 것과 거기서 나가는 것만 남기고 나머지는 숨긴다">초점</button>
   <span class="hint" id="modeHint">클릭: 선택·펼치기 · 더블클릭: 접기 · 검은 테두리 = 지나온 경로 · 왼쪽: 폴더로 펼치기</span>
+  <select id="editorSel" title="파일:줄 ↗ 를 여는 에디터. 없으면 '경로 복사'"></select>
   <div class="panes">
     <button id="toggleLeft" class="on" title="왼쪽 목록 열기/닫기 (구조: 폴더 · 실행 경로: 진입점)">◧ 목록</button>
     <button id="toggleRight" class="on" title="오른쪽 상세 창 열기/닫기">상세 ◨</button>
@@ -506,7 +508,37 @@ function goTo(name, method) {
 
 // ---- 클래스 Inspector: 고정 헤더 + Overview / Methods 탭 + 메서드 상세 (뒤로 가기) ----
 const insp = { cls: null, tab: 'overview', method: null, query: '' };
-function editorLink(file, line) { return `vscode://file/${DATA.root}/${file}:${line}`; }
+// 에디터 URL 프리셋. {path} = 절대 경로, {line} = 줄. 'copy' 는 클립보드에 경로:줄 복사
+const EDITORS = {
+  vscode: { label: 'VS Code', url: 'vscode://file/{path}:{line}' },
+  'vscode-insiders': { label: 'VS Code Insiders', url: 'vscode-insiders://file/{path}:{line}' },
+  cursor: { label: 'Cursor', url: 'cursor://file/{path}:{line}' },
+  windsurf: { label: 'Windsurf', url: 'windsurf://file/{path}:{line}' },
+  zed: { label: 'Zed', url: 'zed://file/{path}:{line}' },
+  webstorm: { label: 'WebStorm', url: 'webstorm://open?file={path}&line={line}' },
+  idea: { label: 'IntelliJ IDEA', url: 'idea://open?file={path}&line={line}' },
+  sublime: { label: 'Sublime Text', url: 'subl://open?url=file://{path}&line={line}' },
+  copy: { label: '경로 복사', url: '' },
+};
+let editor = DATA.editor && (EDITORS[DATA.editor] || DATA.editor.includes('{path}')) ? DATA.editor : 'vscode';
+try { const saved = localStorage.getItem('explorer.editor'); if (saved && (EDITORS[saved] || saved.includes('{path}'))) editor = saved; } catch {}
+function editorLink(file, line) {
+  const tpl = EDITORS[editor]?.url ?? editor; if (!tpl) return '#';
+  return tpl.replace('{path}', `${DATA.root}/${file}`).replace('{line}', line);
+}
+{
+  const sel = document.getElementById('editorSel');
+  sel.innerHTML = Object.entries(EDITORS).map(([k, v]) => `<option value="${k}">${esc(v.label)}</option>`).join('') + (EDITORS[editor] ? '' : `<option value="${esc(editor)}">사용자 지정</option>`);
+  sel.value = editor;
+  sel.addEventListener('change', () => { editor = sel.value; try { localStorage.setItem('explorer.editor', editor); } catch {} if (insp.cls) renderInspector(); });
+}
+/** ↗ 클릭: 'copy' 면 경로:줄 을 복사하고, 아니면 에디터 URL 로 연다 (열 프로그램이 없으면 브라우저가 알림을 띄우므로 헤더에서 에디터를 바꾼다) */
+function openInEditor(ev, file, line) {
+  if (editor !== 'copy') return; // 기본 동작(href)
+  ev.preventDefault();
+  const text = `${DATA.root}/${file}:${line}`;
+  navigator.clipboard?.writeText(text).then(() => toast(`복사됨: ${text}`)).catch(() => toast(text));
+}
 const baseName = (file) => file.split('/').pop();
 const layerColor = (name) => COLOR[byName[name]?.layer] ?? COLOR.Etc;
 /** "name?: type" → { name, type } (":" 앞은 이름, 뒤는 타입) */
@@ -537,7 +569,7 @@ function renderInspector() {
     ${crumbs}
     <div class="type" style="color:${COLOR[c.layer]}">${esc(c.layer)}</div>
     <h2>${esc(c.name)}</h2>
-    <div class="file"><a href="${editorLink(c.file, c.line)}" title="${esc(c.file)}">${esc(baseName(c.file))} : ${c.line} ↗</a></div>
+    <div class="file"><a href="${editorLink(c.file, c.line)}" data-file="${esc(c.file)}" data-line="${c.line}" title="${esc(c.file)} · ${esc(EDITORS[editor]?.label ?? editor)}">${esc(baseName(c.file))} : ${c.line} ↗</a></div>
     <div class="counts"><b>${c.deps.length}</b> dependencies · <b>${callers.length}</b> usages${c.table ? ` · 테이블 <b>${esc(c.table)}</b>` : ''}${mode === 'structure' && expanded.has(c.name) && c.deps.length ? ` · <span class="toggle" id="collapseNode" style="color:var(--controller);cursor:pointer">그래프에서 접기</span>` : ''}</div>
     <div class="tabs">
       <button data-tab="overview" class="${insp.tab === 'overview' ? 'on' : ''}">Overview</button>
@@ -592,12 +624,13 @@ function renderMethodDetail(c, m) {
     ${m.tables.length ? `<h3>Tables</h3><div class="chips">${m.tables.map((t) => `<span class="chip static tbl">${esc(t)}</span>`).join('')}</div>` : ''}
     ${m.jobs.length ? `<h3>Queue</h3><div class="chips">${m.jobs.map((j) => `<span class="chip static job">큐 → ${esc(j)}</span>`).join('')}</div>` : ''}
     <h3>Source</h3>
-    <div class="file"><a href="${editorLink(c.file, m.line)}">${esc(baseName(c.file))} : ${m.line} ↗</a></div>
+    <div class="file"><a href="${editorLink(c.file, m.line)}" data-file="${esc(c.file)}" data-line="${m.line}" title="${esc(c.file)} · ${esc(EDITORS[editor]?.label ?? editor)}">${esc(baseName(c.file))} : ${m.line} ↗</a></div>
   </div>`;
 }
 function bindPanel() {
   const panel = document.getElementById('panel');
   panel.querySelectorAll('[data-go]').forEach((el) => el.addEventListener('click', () => goTo(el.dataset.go)));
+  panel.querySelectorAll('.file a[data-file]').forEach((el) => el.addEventListener('click', (ev) => openInEditor(ev, el.dataset.file, el.dataset.line)));
   panel.querySelectorAll('.tabs button').forEach((el) => el.addEventListener('click', () => { insp.tab = el.dataset.tab; insp.method = null; renderInspector(); }));
   panel.querySelectorAll('.mlist li').forEach((el) => el.addEventListener('click', () => { insp.method = el.dataset.m; renderInspector(); }));
   panel.querySelector('#backToList')?.addEventListener('click', () => { insp.method = null; renderInspector(); });
