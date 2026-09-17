@@ -9,7 +9,7 @@
  * 4) 인터랙티브 탐색기: 진입점 → 주입 클래스, 메서드·주석·호출·테이블·에러코드·라우트·큐 경계 (vis-network 인라인, 오프라인)
  */
 import { execSync } from 'child_process';
-import { existsSync, readFileSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import * as path from 'path';
 import { ClassDeclaration, Project, Scope, SourceFile, SyntaxKind } from 'ts-morph';
 
@@ -42,7 +42,8 @@ type Config = {
 export type RunOptions = {
   /** 프로젝트 루트 (tsconfig.json 위치, 설정의 상대 경로 기준) */
   cwd: string;
-  configPath: string;
+  /** 설정 파일. 생략하면 전부 기본값(NestJS 표준 관례) */
+  configPath?: string;
   /** mermaid-cli 로 SVG 를 그릴지 (기본 true) */
   svg?: boolean;
   /** 이 패키지 디렉터리 (내장 템플릿 위치). 생략하면 컴파일된 파일 기준 */
@@ -86,9 +87,34 @@ let tableRe = /$^/g;
 let sqlObjRe = /$^/;
 let externalRules: { re: RegExp; label: string; terminal: boolean }[] = [];
 
-function loadConfig(configPath: string): void {
-  if (!existsSync(configPath)) throw new Error(`config not found: ${configPath}`);
-  const raw = JSON.parse(readFileSync(configPath, 'utf8')) as Partial<Config>;
+/** 기본 설정 사본 (--init 이 파일로 쓰고, 설정 파일이 없을 때 그대로 쓴다) */
+export function defaultConfig(): Config {
+  return JSON.parse(JSON.stringify(CONFIG_DEFAULTS)) as Config;
+}
+
+export type InitResult = { file: string; created: boolean };
+
+/**
+ * 기본 설정을 JSON 파일로 쓴다. 이미 있으면 force 가 아닌 한 건드리지 않는다.
+ * 첫 줄 $comment 에 각 섹션의 뜻을 적어 두어 필요한 줄만 고치면 되게 한다.
+ */
+export function initConfig(file: string, opts: { force?: boolean } = {}): InitResult {
+  if (existsSync(file) && !opts.force) return { file, created: false };
+  const body = {
+    $comment:
+      'nest-code-explorer 설정 (npx nest-code-explorer --init 이 만든 기본값). 모든 키는 생략 가능하며 생략하면 이 값이 쓰인다. ' +
+      'include/exclude: 분석 범위(루트 기준 디렉터리, 제외 정규식) · layers: 파일 경로 정규식 → 계층·열(column)·색·진입점 그룹(entry)·제외(skip) · ' +
+      'http: 라우트/버전/cron 데코레이터 이름 · queue: 큐 경계 어댑터 type = none | nestjs-bullmq | manual-router · ' +
+      'sql/orm: 테이블 추출 관례 · errors.className: new X(\'CODE\') 형태의 예외 클래스 · externals: 클래스 이름 정규식 → 외부 시스템 라벨(terminal: 말단) · ' +
+      'output: 생성 경로. 정규식은 JSON 문자열이라 역슬래시를 두 번 쓴다.',
+    ...defaultConfig(),
+  };
+  writeFileSync(file, JSON.stringify(body, null, 2) + '\n');
+  return { file, created: true };
+}
+
+function loadConfig(configPath?: string): void {
+  const raw: Partial<Config> = configPath ? (JSON.parse(readFileSync(configPath, 'utf8')) as Partial<Config>) : {};
   CFG = { ...CONFIG_DEFAULTS, ...raw, output: { ...CONFIG_DEFAULTS.output, ...(raw.output ?? {}) } } as Config;
   layerRules = CFG.layers.map((l) => ({ ...l, re: new RegExp(l.match) }));
   excludeRes = CFG.exclude.map((e) => new RegExp(e));
@@ -456,6 +482,7 @@ function main(svg: boolean): RunResult {
     .replace('__VIS__', () => visJs)
     .replace('__DATA__', () => JSON.stringify(explorerData));
   const explorerOut = path.join(ROOT, CFG.output.explorer);
+  mkdirSync(path.dirname(explorerOut), { recursive: true });
   writeFileSync(explorerOut, explorerHtml);
   console.log(`explorer: ${explorerClasses.length} classes → ${CFG.output.explorer}`);
 
@@ -498,6 +525,8 @@ ${indexRows.join('\n')}
 `;
   const markdownOut = path.join(ROOT, CFG.output.markdown);
   const diagramsDir = path.join(ROOT, CFG.output.diagramsDir);
+  mkdirSync(path.dirname(markdownOut), { recursive: true });
+  mkdirSync(diagramsDir, { recursive: true });
   writeFileSync(markdownOut, md);
   writeFileSync(path.join(diagramsDir, 'code-imports.mmd'), importsMermaid);
   for (const [g, m] of Object.entries(classDiagrams)) writeFileSync(path.join(diagramsDir, `code-classes-${g}.mmd`), m);

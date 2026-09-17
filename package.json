@@ -1,6 +1,6 @@
 {
   "name": "nest-code-explorer",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Static code explorer for NestJS: interactive single-file HTML (structure + execution paths) and mermaid code map, generated from source with ts-morph",
   "keywords": [
     "nestjs",
@@ -31,11 +31,12 @@
     "dist",
     "template",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "CHANGELOG.md"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "npm run build && node --test test/fixture.test.js",
+    "test": "npm run build && node --test test/fixture.test.js test/init.test.js",
     "prepublishOnly": "npm run build && npm test"
   },
   "engines": {

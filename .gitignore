@@ -3,3 +3,4 @@ dist/
 fixtures/*/out/
 *.tgz
 .DS_Store
+fixtures/*/docs/

@@ -16,16 +16,18 @@ NestJS 프로젝트의 소스를 정적 분석(ts-morph)해서 두 가지를 만
 ## 사용
 
 ```bash
-# 프로젝트 루트에서 (tsconfig.json 과 설정 파일이 있는 곳)
+# 프로젝트 루트에서 (tsconfig.json 이 있는 곳)
+npx nest-code-explorer --open           # 설정 파일 없으면 기본값으로 분석해 브라우저로 연다
+npx nest-code-explorer --init           # 기본값 전체를 code-explorer.config.json 으로 생성 (있으면 --force 없이는 안 덮어씀)
 npx nest-code-explorer --config code-explorer.config.json --open
 npx nest-code-explorer --no-svg          # mermaid SVG 렌더 생략 (빠름)
 ```
 
-설정 파일이 없으면 기본값(`src`, Controller/Service/Repository/Guard 계층, 큐 없음)으로 동작한다.
+설정 파일이 없으면 기본값(`src`, Controller/Service/Repository/Guard 계층, `HttpException`, 큐 없음)으로 동작한다. 프로젝트 규약이 다르면 `--init` 으로 파일을 만든 뒤 필요한 줄만 고친다. 모든 키가 생략 가능하다.
 
 ## 설정 (`code-explorer.config.json`)
 
-프로젝트 규약은 전부 설정에 있고 분석기에는 프로젝트 이름이 없다. 주요 항목:
+프로젝트 규약은 전부 설정에 있고 분석기에는 프로젝트 이름이 없다. `npx nest-code-explorer --init` 이 기본값 전체를 `$comment` 와 함께 써 준다. 주요 항목:
 
 | 키 | 뜻 |
 | --- | --- |
@@ -41,7 +43,20 @@ npx nest-code-explorer --no-svg          # mermaid SVG 렌더 생략 (빠름)
 | `externals[]` | 클래스 이름 정규식 → 외부 시스템 라벨. `terminal: true` 면 실행 경로 말단 노드 |
 | `output` | `explorer`, `markdown`, `diagramsDir`. `template` 과 `visNetwork` 는 생략하면 패키지 내장 |
 
-생략한 섹션은 NestJS 표준 관례 기본값을 쓴다(`include: ["src"]`, Controller/Service/Repository/Guard 계층, `HttpException`). 예시는 `fixtures/bullmq-app/code-explorer.config.json`(nestjs-bullmq). manual-router 예시는 [push-platform 의 설정](https://github.com/whalebanana86)을 참고.
+생략한 섹션은 NestJS 표준 관례 기본값을 쓴다(`include: ["src"]`, Controller/Service/Repository/Guard 계층, `HttpException`). 예시는 `fixtures/bullmq-app/code-explorer.config.json`(nestjs-bullmq). manual-router 예시(Job 이름 상수 + switch 라우터, `*.sql.ts` named query, `AppError`, FCM 외부 시스템)는 아래 `code-explorer.config.json` 발췌 참고.
+
+```jsonc
+{
+  "layers": [
+    { "name": "Controller", "match": "\\.controller\\.ts$", "column": 0, "color": "#2f6fed", "entry": "HTTP (Controller)" },
+    { "name": "Usecase", "match": "\\.usecase\\.ts$", "column": 1, "color": "#7c4dff" },
+    { "name": "Worker", "match": "/worker/.*\\.(processor|manager)\\.ts$", "column": 1, "color": "#d9480f", "entry": "Queue (Worker)" }
+  ],
+  "queue": { "type": "manual-router", "namesFile": "src/domains/push/queue/push-queue.names.ts", "namesConst": "PushJobName", "routerClass": "TenantWorkerManager" },
+  "errors": { "className": "AppError" },
+  "externals": [{ "match": "^Fcm(Provider|Sender)", "label": "FCM", "terminal": true }]
+}
+```
 
 ## 출력 JSON
 
