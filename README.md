@@ -2,7 +2,7 @@
 
 [![npm](https://img.shields.io/npm/v/nest-code-explorer)](https://www.npmjs.com/package/nest-code-explorer) [![license](https://img.shields.io/npm/l/nest-code-explorer)](LICENSE)
 
-NestJS 프로젝트의 소스를 읽어 **클릭해서 내려가는 코드 탐색기**(단일 HTML)를 만든다. 앱을 띄우지 않고, DB 도 없이, ts-morph 로 TypeScript 를 정적 분석한다.
+NestJS 프로젝트의 소스를 읽어 **클릭해서 내려가는 코드 탐색기**를 브라우저로 연다. 앱을 띄우지 않고, DB 도 없이, 파일도 남기지 않고, ts-morph 로 TypeScript 를 정적 분석한다. 공유용으로 단일 HTML 파일로 남길 수도 있다.
 
 ```bash
 npx nest-code-explorer
@@ -59,15 +59,18 @@ npx nest-code-explorer
 
 ### 3. 코드가 바뀌면 다시 돌린다
 
-탐색기는 실행 시점의 소스를 읽은 정적 결과다. `package.json` 에 넣어 두면 편하다.
+탐색기는 실행 시점의 소스를 읽은 정적 결과다. 감시하지 않으므로 코드를 고쳤으면 Ctrl+C 로 끄고 다시 `npx nest-code-explorer`. 설정 파일 하나 말고는 저장소에 아무것도 두지 않는 게 기본이고, `package.json` 스크립트도 필요 없다.
 
-```json
-"scripts": { "explore": "nest-code-explorer" }
+### 파일로 남기고 싶을 때
+
+슬랙에 던지거나 오프라인에서 열거나 CI 에서 문서로 만들 때는 파일 모드를 쓴다.
+
+```bash
+npx nest-code-explorer --open              # docs/code-explorer.html (+ code-map.md, diagrams/) 를 만들고 그 파일을 연다
+npx nest-code-explorer --write --no-svg    # 만들기만 (CI). --no-svg 는 느린 mermaid SVG 렌더 생략
 ```
 
-파일로 남기는 쪽은 `nest-code-explorer --open --no-svg`, CI 에서 생성만 하려면 `--write --no-svg`.
-
-`--no-svg` 는 mermaid SVG 렌더(느림)를 빼고 탐색기 HTML 만 만든다. `docs/code-explorer.html` 은 vis-network 가 들어 있어 800KB 쯤 되므로 `.gitignore` 에 넣는 편이 낫다.
+`docs/code-explorer.html` 은 vis-network 가 들어 있어 800KB 쯤 되므로 커밋하지 말고 `.gitignore` 에 넣는다.
 
 ### 옵션
 
@@ -166,11 +169,12 @@ npx nest-code-explorer
 
 ```bash
 npm run build                               # src/analyze.ts → dist/
-npm test                                    # examples/order-app · fixtures/bullmq-app 분석 결과와 --init 을 검증 (node:test)
+npm test                                    # examples/order-app · fixtures/bullmq-app 분석 결과, --init, 기본(서버) 모드를 검증 (node:test)
+node bin/cli.js --cwd examples/order-app --write --no-svg                                 # 예시 프로젝트 탐색기를 파일로
 node scripts/readme-shots.js examples/order-app/docs/code-explorer.html docs/screenshots   # README 스크린샷 재생성 (headless Chrome)
 ```
 
-구조: `src/analyze.ts`(분석기: 설정 로드 → import 그래프 → 클래스·메서드 색인 → 라우트·큐·SQL·에러·외부 추출 → HTML/markdown 출력), `template/code-explorer.template.html`(탐색기 UI, `__DATA__` 에 분석 결과가 들어간다), `bin/cli.js`, `examples/order-app`(예시 프로젝트), `fixtures/bullmq-app`(nestjs-bullmq 어댑터 픽스처), `test/`.
+구조: `src/analyze.ts`(분석기: 설정 로드 → import 그래프 → 클래스·메서드 색인 → 라우트·큐·SQL·에러·외부 추출 → HTML/markdown 생성, `write:false` 면 HTML 문자열만 반환), `template/code-explorer.template.html`(탐색기 UI, `__DATA__` 에 분석 결과가 들어간다), `bin/cli.js`(기본 서버 모드 · `--open`/`--write` 파일 모드 · `--init`), `examples/order-app`(예시 프로젝트), `fixtures/bullmq-app`(nestjs-bullmq 어댑터 픽스처), `test/`.
 
 ## 배포
 
