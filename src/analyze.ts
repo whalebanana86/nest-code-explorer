@@ -52,10 +52,12 @@ export type RunOptions = {
   configPath?: string;
   /** mermaid-cli 로 SVG 를 그릴지 (기본 true) */
   svg?: boolean;
+  /** false 면 파일을 하나도 쓰지 않고 탐색기 HTML 을 결과(html)로만 돌려준다 (--serve) */
+  write?: boolean;
   /** 이 패키지 디렉터리 (내장 템플릿 위치). 생략하면 컴파일된 파일 기준 */
   packageDir?: string;
 };
-export type RunResult = { explorer: string; markdown: string; classes: number };
+export type RunResult = { explorer: string; markdown: string; classes: number; html: string };
 
 /** 생략 가능한 섹션의 기본값 (NestJS 표준 관례) */
 const CONFIG_DEFAULTS: Omit<Config, 'layers'> & { layers: LayerConfig[] } = {
@@ -153,7 +155,7 @@ function layerOf(file: string): { name: string; skip: boolean } {
   return hit ? { name: hit.name, skip: !!hit.skip } : { name: CFG.defaultLayer.name, skip: false };
 }
 
-function main(svg: boolean): RunResult {
+function main(svg: boolean, write: boolean): RunResult {
   const project = new Project({ tsConfigFilePath: path.join(ROOT, 'tsconfig.json') });
   const files = project
     .getSourceFiles()
@@ -503,6 +505,11 @@ function main(svg: boolean): RunResult {
     .replace(/__TITLE__/g, () => esc(explorerTitle()))
     .replace('__DATA__', () => JSON.stringify(explorerData));
   const explorerOut = path.join(ROOT, CFG.output.explorer);
+  const markdownOut = path.join(ROOT, CFG.output.markdown);
+  if (!write) {
+    console.log(`explorer: ${explorerClasses.length} classes (메모리, 파일 없음)`);
+    return { explorer: explorerOut, markdown: markdownOut, classes: explorerClasses.length, html: explorerHtml };
+  }
   mkdirSync(path.dirname(explorerOut), { recursive: true });
   writeFileSync(explorerOut, explorerHtml);
   console.log(`explorer: ${explorerClasses.length} classes → ${CFG.output.explorer}`);
@@ -510,7 +517,7 @@ function main(svg: boolean): RunResult {
   // ---------- 출력 ----------
   const md = `# 코드 지도 (자동 생성)
 
-\`npm run graph:code\` 가 ts-morph 로 소스를 정적 분석해 만든다. 코드가 바뀌면 다시 실행한다. 범위: \`${CFG.include.join('`, `')}\` (spec·module 파일 제외). 모듈 단위 의존은 [di-graph.md](di-graph.md), 요청이 어떤 순서로 처리되는지는 [worker-flow.md](worker-flow.md).
+nest-code-explorer 가 ts-morph 로 소스를 정적 분석해 만든다. 코드가 바뀌면 다시 실행한다. 범위: \`${CFG.include.join('`, `')}\` (spec·module 파일 제외).
 
 ## 1. 파일 import 그래프
 
@@ -544,7 +551,6 @@ ${classDiagrams[g]}
 
 ${indexRows.join('\n')}
 `;
-  const markdownOut = path.join(ROOT, CFG.output.markdown);
   const diagramsDir = path.join(ROOT, CFG.output.diagramsDir);
   mkdirSync(path.dirname(markdownOut), { recursive: true });
   mkdirSync(diagramsDir, { recursive: true });
@@ -563,7 +569,7 @@ ${indexRows.join('\n')}
       }
     }
   }
-  return { explorer: explorerOut, markdown: markdownOut, classes: explorerClasses.length };
+  return { explorer: explorerOut, markdown: markdownOut, classes: explorerClasses.length, html: explorerHtml };
 }
 
 /** 설정을 읽고 분석·생성을 수행한다 (CLI 와 프로그램 양쪽에서 호출) */
@@ -571,5 +577,5 @@ export function run(opts: RunOptions): RunResult {
   ROOT = opts.cwd;
   if (opts.packageDir) PKG = opts.packageDir;
   loadConfig(opts.configPath);
-  return main(opts.svg !== false);
+  return main(opts.svg !== false, opts.write !== false);
 }

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.0 (2026-09-17)
+
+- `--serve [--port 4545] [--open]`: 파일을 하나도 쓰지 않고 기동 때 한 번 분석해 `http://localhost:4545/` 로 탐색기를 내준다. 저장소에 생성물이 안 생기므로 `.gitignore` 가 필요 없다. 다시 분석하려면 서버를 다시 띄운다.
+- `run({ write: false })` 가 HTML 을 결과(`html`)로만 돌려준다.
+- 생성 markdown 머리말에서 특정 프로젝트 문서 링크(di-graph.md, worker-flow.md) 제거.
+
 ## 0.3.7 (2026-09-17)
 
 - 파일:줄 `↗` 링크의 에디터를 헤더 드롭다운에서 고른다(VS Code · VS Code Insiders · Cursor · Windsurf · Zed · WebStorm · IntelliJ · Sublime · 경로 복사). 설정 `editor` 로 기본값 지정, 선택은 브라우저에 저장. 에디터가 없어 `vscode://` 를 열 수 없던 경우 '경로 복사'로 대신한다.
