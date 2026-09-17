@@ -17,8 +17,8 @@
 
 ```bash
 cd examples/order-app
-npx nest-code-explorer --open            # docs/code-explorer.html 생성 후 브라우저로
-npx nest-code-explorer --no-svg --open   # mermaid SVG 생략 (빠름)
+npx nest-code-explorer                   # 파일 없이 http://localhost:4545 로 연다
+npx nest-code-explorer --open --no-svg   # docs/code-explorer.html 로 남기고 연다
 ```
 
 의존성 설치는 필요 없다. 탐색기는 소스만 읽는다(앱을 띄우지 않는다). `package.json` 의 의존성은 이 코드가 실제 NestJS 앱으로도 말이 되게 적어 둔 것이다.

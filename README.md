@@ -5,7 +5,7 @@
 NestJS 프로젝트의 소스를 읽어 **클릭해서 내려가는 코드 탐색기**(단일 HTML)를 만든다. 앱을 띄우지 않고, DB 도 없이, ts-morph 로 TypeScript 를 정적 분석한다.
 
 ```bash
-npx nest-code-explorer --open
+npx nest-code-explorer
 ```
 
 ## 왜 만들었나
@@ -27,10 +27,10 @@ npx nest-code-explorer --open
 NestJS 프로젝트 루트(`tsconfig.json` 이 있는 폴더)에서 한 줄.
 
 ```bash
-npx nest-code-explorer --serve --open     # 파일을 남기지 않고 http://localhost:4545 로 본다
+npx nest-code-explorer
 ```
 
-설치할 것은 없다. 기동할 때 한 번 분석해 메모리에 들고 있으므로 저장소에 생성물이 생기지 않고 `.gitignore` 를 손댈 일도 없다. 코드가 바뀐 뒤 다시 보려면 서버를 다시 띄운다. 파일로 남겨 공유하거나 오프라인에서 열려면 `--serve` 대신 `--open` 만 준다(`docs/code-explorer.html` 생성). 첫 실행은 npx 가 패키지를 받느라 10초쯤 걸리고, 끝나면 `docs/code-explorer.html` 이 생기고 브라우저가 열린다. `*.controller.ts` / `*.usecase.ts` / `*.service.ts` / `*.repository.ts` / `*.guard.ts` 관례를 쓰는 프로젝트라면 여기서 끝이다.
+설치할 것은 없다. 첫 실행은 npx 가 패키지를 받느라 10초쯤 걸린다. 기동할 때 한 번 분석해 메모리에 들고 http://localhost:4545 를 브라우저로 연다. 파일을 하나도 쓰지 않으므로 저장소에 생성물이 생기지 않고 `.gitignore` 를 손댈 일도 없다. 코드가 바뀐 뒤 다시 보려면 Ctrl+C 로 끄고 다시 실행한다. 파일로 남겨 공유하거나 오프라인에서 열려면 `--open` 을 준다(`docs/code-explorer.html` 을 만들고 그 파일을 연다). `*.controller.ts` / `*.usecase.ts` / `*.service.ts` / `*.repository.ts` / `*.guard.ts` 관례를 쓰는 프로젝트라면 여기서 끝이다.
 
 ### 2. 잘못 잡힌 게 있으면 설정 파일을 만든다
 
@@ -52,7 +52,7 @@ npx nest-code-explorer --init      # code-explorer.config.json 생성 (기본값
 고친 뒤 다시 실행하면 같은 폴더의 설정 파일을 자동으로 읽는다.
 
 ```bash
-npx nest-code-explorer --open
+npx nest-code-explorer
 ```
 
 완성된 설정 예시: [`examples/order-app/code-explorer.config.json`](examples/order-app/code-explorer.config.json)(manual-router 큐, RawSQL/TypeORM, `AppError`, 외부 시스템 3종), [`fixtures/bullmq-app/code-explorer.config.json`](fixtures/bullmq-app/code-explorer.config.json)(`@nestjs/bullmq`).
@@ -62,10 +62,10 @@ npx nest-code-explorer --open
 탐색기는 실행 시점의 소스를 읽은 정적 결과다. `package.json` 에 넣어 두면 편하다.
 
 ```json
-"scripts": { "explore": "nest-code-explorer --serve --open" }
+"scripts": { "explore": "nest-code-explorer" }
 ```
 
-파일로 남기는 쪽은 `nest-code-explorer --no-svg --open`.
+파일로 남기는 쪽은 `nest-code-explorer --open --no-svg`, CI 에서 생성만 하려면 `--write --no-svg`.
 
 `--no-svg` 는 mermaid SVG 렌더(느림)를 빼고 탐색기 HTML 만 만든다. `docs/code-explorer.html` 은 vis-network 가 들어 있어 800KB 쯤 되므로 `.gitignore` 에 넣는 편이 낫다.
 
@@ -73,15 +73,17 @@ npx nest-code-explorer --open
 
 | 옵션 | 뜻 |
 | --- | --- |
-| `--serve` | 파일을 쓰지 않고 기동 때 한 번 분석해 로컬 HTTP 로 보여 준다 (온보딩용) |
-| `--port <n>` | `--serve` 포트 (기본 4545) |
-| `--open` | 탐색기를 기본 브라우저로 연다 (`--serve` 면 서버 주소를 연다) |
+| (없음) | **기본**: 파일 없이 기동 때 한 번 분석해 http://localhost:4545 를 연다 |
+| `--open` | 파일(`docs/code-explorer.html`, `code-map.md`, `diagrams/`)을 만들고 그 파일을 연다 |
+| `--write` | 파일만 만들고 열지 않는다 (CI) |
+| `--no-open` | 브라우저를 열지 않는다 (기본 모드면 주소만 출력) |
+| `--port <n>` | 기본 모드 포트 (기본 4545) |
 | `--init [--force]` | 기본값 전체를 `code-explorer.config.json` 으로 쓴다. 이미 있으면 `--force` 없이는 건드리지 않는다 |
 | `--config <file>` | 설정 파일 경로 (기본 `code-explorer.config.json`, 없으면 기본값으로 실행) |
-| `--no-svg` | 코드 지도(mermaid)의 SVG 렌더를 생략한다 |
+| `--no-svg` | 파일 모드에서 코드 지도(mermaid)의 SVG 렌더를 생략한다 |
 | `--cwd <dir>` | 프로젝트 루트 (기본: 현재 디렉터리) |
 
-생성물: `docs/code-explorer.html`(탐색기, 오프라인에서 열림), `docs/code-map.md`(import 그래프·클래스 다이어그램 mermaid 코드 지도), `docs/diagrams/*.svg`.
+파일 모드 생성물: `docs/code-explorer.html`(탐색기, 오프라인에서 열림), `docs/code-map.md`(import 그래프·클래스 다이어그램 mermaid 코드 지도), `docs/diagrams/*.svg`.
 
 ### 예시 프로젝트로 먼저 보기
 
@@ -90,7 +92,7 @@ npx nest-code-explorer --open
 ```bash
 git clone https://github.com/whalebanana86/nest-code-explorer.git
 cd nest-code-explorer/examples/order-app
-npx nest-code-explorer --open
+npx nest-code-explorer
 ```
 
 ## 화면과 기능

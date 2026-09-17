@@ -4,8 +4,8 @@
   "private": true,
   "description": "nest-code-explorer 예시 프로젝트: Controller → Usecase → Service → Repository/SQL, manual-router 큐 Worker, cron, 외부 시스템",
   "scripts": {
-    "explore": "nest-code-explorer --open",
-    "explore:fast": "nest-code-explorer --no-svg --open"
+    "explore": "nest-code-explorer",
+    "explore:file": "nest-code-explorer --open --no-svg"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.0",

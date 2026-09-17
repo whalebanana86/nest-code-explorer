@@ -1,5 +1,5 @@
 /**
- * --serve: 파일을 쓰지 않고 HTTP 로 탐색기를 내주는지 확인한다.
+ * 기본 모드: 파일을 쓰지 않고 HTTP 로 탐색기를 내주는지 확인한다.
  */
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -11,11 +11,11 @@ const { spawn } = require('child_process');
 const cli = path.join(__dirname, '../bin/cli.js');
 const os = require('os');
 
-test('CLI --serve --port 0: 파일 없이 HTML 을 내준다', async () => {
+test('CLI 기본 모드(--port 0 --no-open): 파일 없이 HTML 을 내준다', async () => {
   // 다른 테스트가 fixtures/bullmq-app/out 을 만들므로 임시 사본에서 돌려 "파일이 안 생김"을 확인한다
   const fixture = fs.mkdtempSync(path.join(os.tmpdir(), 'nce-serve-'));
   fs.cpSync(path.join(__dirname, '../fixtures/bullmq-app'), fixture, { recursive: true, filter: (src) => !/[\/](out|docs)([\/]|$)/.test(src) });
-  const child = spawn('node', [cli, '--serve', '--port', '0', '--cwd', fixture]);
+  const child = spawn('node', [cli, '--port', '0', '--no-open', '--cwd', fixture]);
   try {
     const url = await new Promise((resolve, reject) => {
       let out = '';
