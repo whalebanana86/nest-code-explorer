@@ -294,7 +294,7 @@ function drawMinimap() {
 }
 function mmToGraph(ev) { const r = $mm.getBoundingClientRect(); const x = (ev.clientX - r.left) * ($mm.width / r.width), y = (ev.clientY - r.top) * ($mm.height / r.height); return { x: mmMap.ux + (x - mmMap.ox) / mmMap.k, y: mmMap.uy + (y - mmMap.oy) / mmMap.k }; }
 // 보는 영역 사각형 안에서 누르면 점프 없이 끌고(포인터 이동의 절반 속도), 밖을 누르면 그곳으로 부드럽게 이동
-const MM_DRAG_SPEED = 0.5;
+const MM_DRAG_SPEED = 0.75;
 let mmDrag = null; // { last: {x,y} }
 $mm.addEventListener('mousedown', (ev) => {
   if (!mmMap) return; ev.preventDefault();
@@ -753,13 +753,20 @@ function setMode(next) {
 const panes = { left: true, right: true };
 try { Object.assign(panes, JSON.parse(localStorage.getItem('explorer.panes') || '{}')); } catch {}
 function applyPanes() {
-  const main = document.getElementById('main');
+  const main = document.getElementById('main'); const graph = document.getElementById('graph');
+  // 창을 열고 닫아도 노드가 화면에서 제자리에 있도록: 캔버스 중심의 화면 좌표가 움직인 만큼만 뷰 중심을 보정한다 (다시 맞추지 않음)
+  const before = graph.getBoundingClientRect(); const scale = network.getScale(); const c = network.getViewPosition();
   main.classList.toggle('no-left', !panes.left);
   main.classList.toggle('no-right', !panes.right);
   document.getElementById('toggleLeft').classList.toggle('on', panes.left);
   document.getElementById('toggleRight').classList.toggle('on', panes.right);
   try { localStorage.setItem('explorer.panes', JSON.stringify(panes)); } catch {}
-  setTimeout(() => { network.redraw(); fitAll(); }, 0);
+  const after = graph.getBoundingClientRect();
+  network.setSize(`${after.width}px`, `${after.height}px`);
+  const dx = ((after.left + after.width / 2) - (before.left + before.width / 2)) / scale;
+  // vis 는 캔버스 크기가 바뀌면 배율을 같이 바꾸므로 배율과 중심을 되돌린다
+  if (before.width) network.moveTo({ scale, position: { x: c.x + dx, y: c.y }, animation: false });
+  network.redraw(); drawMinimap();
 }
 document.getElementById('toggleLeft').addEventListener('click', () => { panes.left = !panes.left; applyPanes(); });
 document.getElementById('toggleRight').addEventListener('click', () => { panes.right = !panes.right; applyPanes(); });
