@@ -767,7 +767,7 @@ function applyPanes() {
   document.getElementById('toggleRight').classList.toggle('on', panes.right);
   try { localStorage.setItem('explorer.panes', JSON.stringify(panes)); } catch {}
   const after = graph.getBoundingClientRect();
-  network.setSize(`${after.width}px`, `${after.height}px`);
+  network.setSize('100%', '100%'); // 캔버스를 지금 컨테이너 크기에 맞춘다 (px 로 고정하면 창 크기를 바꿀 때 캔버스가 안 늘어나 빈 영역에서 드래그가 안 된다)
   const dx = ((after.left + after.width / 2) - (before.left + before.width / 2)) / scale;
   // vis 는 캔버스 크기가 바뀌면 배율을 같이 바꾸므로 배율과 중심을 되돌린다
   if (before.width) network.moveTo({ scale, position: { x: c.x + dx, y: c.y }, animation: false });
