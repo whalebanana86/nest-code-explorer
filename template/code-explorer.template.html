@@ -67,7 +67,10 @@
   #entries .e .verb { font-family: ui-monospace, Menlo, monospace; font-size: 11px; font-weight: 700; width: 46px; flex: 0 0 auto; }
   #entries .e .path { font-family: ui-monospace, Menlo, monospace; font-size: 12px; word-break: break-all; }
   #entries .e .sub { color: var(--muted); font-size: 11px; }
+  #graphWrap { position: relative; min-height: 0; overflow: hidden; }
   #graph { background: var(--bg); height: 100%; min-height: 0; overflow: hidden; }
+  #minimap { position: absolute; right: 12px; bottom: 12px; width: 200px; height: 140px; background: rgba(255,255,255,.92); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,.08); cursor: pointer; z-index: 4; }
+  #minimap[hidden] { display: none; }
   aside { border-left: 1px solid var(--line); background: var(--panel); min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
   aside .badge { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 10px; color: #fff; margin-right: 6px; vertical-align: 2px; }
   aside .file { font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: var(--muted); word-break: break-all; }
@@ -184,8 +187,11 @@
 </header>
 <main id="main">
   <nav id="entries"></nav>
-  <div id="graph"></div>
-  <div id="toast" hidden></div>
+  <div id="graphWrap">
+    <div id="graph"></div>
+    <div id="toast" hidden></div>
+    <canvas id="minimap" width="400" height="280" hidden title="전체 그래프 · 밝은 사각형이 지금 보는 영역. 누르거나 끌어서 이동"></canvas>
+  </div>
   <aside id="panel"><div class="empty">노드를 클릭하면 주입받는 클래스가 펼쳐지고, 여기에 그 클래스의 메서드가 나온다. "실행 경로" 모드에서는 API 나 Job 하나가 지나가는 메서드 순서를 본다.</div></aside>
 </main>
 <script>__VIS__</script>
@@ -220,7 +226,78 @@ const network = new vis.Network(document.getElementById('graph'), { nodes, edges
 });
 let mode = 'structure';
 let fitTimer = null;
-function fitAll() { clearTimeout(fitTimer); fitTimer = setTimeout(() => network.fit({ maxZoomLevel: 1, animation: { duration: 250, easingFunction: 'easeInOutQuad' } }), 60); }
+const MIN_SCALE = 0.65; // 이보다 작아지면 노드 글자를 읽을 수 없으므로 전체 맞춤 대신 왼쪽 위부터 보여 주고 미니맵으로 나머지를 안내한다
+const NODE_W = 170, NODE_H = 36; // 좌표는 노드 중심이므로 경계 계산에 더할 여유
+const shownIds = () => nodes.get().filter((n) => !n.hidden).map((n) => n.id);
+function bboxOf(ids) {
+  const pos = network.getPositions(ids); const xs = [], ys = [];
+  for (const id of ids) if (pos[id]) { xs.push(pos[id].x); ys.push(pos[id].y); }
+  if (!xs.length) return null;
+  return { minX: Math.min(...xs) - NODE_W / 2, maxX: Math.max(...xs) + NODE_W / 2, minY: Math.min(...ys) - NODE_H / 2, maxY: Math.max(...ys) + NODE_H / 2 };
+}
+const viewSize = () => { const el = document.getElementById('graph'); return { w: el.clientWidth, h: el.clientHeight }; };
+/** 전체 맞춤. 다만 MIN_SCALE 아래로는 줄이지 않고 왼쪽 위 노드가 보이게 둔다 */
+function fitAll() {
+  clearTimeout(fitTimer);
+  fitTimer = setTimeout(() => {
+    const ids = shownIds(); const b = bboxOf(ids); if (!b) return;
+    const { w, h } = viewSize(); const pad = 30;
+    let scale = Math.min(1, (w - pad * 2) / (b.maxX - b.minX), (h - pad * 2) / (b.maxY - b.minY));
+    let position = { x: (b.minX + b.maxX) / 2, y: (b.minY + b.maxY) / 2 };
+    if (scale < MIN_SCALE) { scale = MIN_SCALE; position = { x: b.minX - pad + w / scale / 2, y: b.minY - pad + h / scale / 2 }; }
+    network.moveTo({ scale, position, animation: { duration: 250, easingFunction: 'easeInOutQuad' } });
+    setTimeout(drawMinimap, 300);
+  }, 60);
+}
+/** 줌은 그대로 두고, 주어진 노드들이 화면 밖이면 그것들이 들어오도록만 이동한다 (커서 클릭 때 줌아웃 방지). 다 안 들어가면 그만큼만 축소 */
+function reveal(ids) {
+  clearTimeout(fitTimer);
+  const b = bboxOf(ids.filter((id) => nodes.get(id) && !nodes.get(id).hidden)); if (!b) return;
+  const { w, h } = viewSize(); const pad = 30; const cur = network.getScale(); const c = network.getViewPosition();
+  const view = { minX: c.x - w / cur / 2, maxX: c.x + w / cur / 2, minY: c.y - h / cur / 2, maxY: c.y + h / cur / 2 };
+  const inside = b.minX >= view.minX && b.maxX <= view.maxX && b.minY >= view.minY && b.maxY <= view.maxY;
+  if (inside) return;
+  const scale = Math.max(MIN_SCALE * 0.8, Math.min(cur, (w - pad * 2) / (b.maxX - b.minX), (h - pad * 2) / (b.maxY - b.minY)));
+  network.moveTo({ scale, position: { x: (b.minX + b.maxX) / 2, y: (b.minY + b.maxY) / 2 }, animation: { duration: 250, easingFunction: 'easeInOutQuad' } });
+  setTimeout(drawMinimap, 300);
+}
+// ---- 미니맵: 전체 노드 + 현재 보는 영역. 노드가 화면 밖에 있을 때만 보인다 ----
+const $mm = document.getElementById('minimap');
+let mmMap = null; // 미니맵 좌표 ↔ 그래프 좌표 변환
+function drawMinimap() {
+  const ids = shownIds(); const b = ids.length ? bboxOf(ids) : null;
+  const { w, h } = viewSize(); const scale = network.getScale(); const c = network.getViewPosition();
+  if (!b) { $mm.hidden = true; return; }
+  const view = { minX: c.x - w / scale / 2, maxX: c.x + w / scale / 2, minY: c.y - h / scale / 2, maxY: c.y + h / scale / 2 };
+  const allInside = b.minX >= view.minX && b.maxX <= view.maxX && b.minY >= view.minY && b.maxY <= view.maxY;
+  $mm.hidden = allInside; if (allInside) return;
+  const W = $mm.width, H = $mm.height, P = 16;
+  const ux = Math.min(b.minX, view.minX), uy = Math.min(b.minY, view.minY), vx = Math.max(b.maxX, view.maxX), vy = Math.max(b.maxY, view.maxY);
+  const k = Math.min((W - P * 2) / (vx - ux), (H - P * 2) / (vy - uy));
+  const ox = P + ((W - P * 2) - (vx - ux) * k) / 2, oy = P + ((H - P * 2) - (vy - uy) * k) / 2;
+  const tx = (x) => ox + (x - ux) * k, ty = (y) => oy + (y - uy) * k;
+  mmMap = { k, ux, uy, ox, oy };
+  const ctx = $mm.getContext('2d'); ctx.clearRect(0, 0, W, H);
+  const pos = network.getPositions(ids);
+  for (const id of ids) {
+    if (String(id).startsWith('__')) continue;
+    const n = nodes.get(id); const col = mode === 'flow' ? (COLOR[flowInfo(id).layer] ?? COLOR.Etc) : (COLOR[byName[id]?.layer] ?? COLOR.Etc);
+    ctx.fillStyle = (n.id === selected || n.id === flowSelected) ? '#111' : col;
+    const nw = Math.max(4, NODE_W * k * 0.8), nh = Math.max(2, NODE_H * k * 0.7);
+    ctx.fillRect(tx(pos[id].x) - nw / 2, ty(pos[id].y) - nh / 2, nw, nh);
+  }
+  ctx.fillStyle = 'rgba(31,37,48,.10)'; ctx.strokeStyle = '#1f2530'; ctx.lineWidth = 2;
+  const rx = tx(view.minX), ry = ty(view.minY), rw = (view.maxX - view.minX) * k, rh = (view.maxY - view.minY) * k;
+  ctx.fillRect(rx, ry, rw, rh); ctx.strokeRect(rx, ry, rw, rh);
+}
+function mmToGraph(ev) { const r = $mm.getBoundingClientRect(); const x = (ev.clientX - r.left) * ($mm.width / r.width), y = (ev.clientY - r.top) * ($mm.height / r.height); return { x: mmMap.ux + (x - mmMap.ox) / mmMap.k, y: mmMap.uy + (y - mmMap.oy) / mmMap.k }; }
+let mmDrag = false;
+$mm.addEventListener('mousedown', (ev) => { if (!mmMap) return; mmDrag = true; network.moveTo({ position: mmToGraph(ev), animation: false }); drawMinimap(); ev.preventDefault(); });
+window.addEventListener('mousemove', (ev) => { if (mmDrag && mmMap) { network.moveTo({ position: mmToGraph(ev), animation: false }); drawMinimap(); } });
+window.addEventListener('mouseup', () => { mmDrag = false; });
+network.on('dragEnd', drawMinimap); network.on('zoom', drawMinimap); network.on('animationFinished', drawMinimap);
+network.on('dragging', (p) => { if (!p.nodes.length) drawMinimap(); });
+window.addEventListener('resize', () => setTimeout(drawMinimap, 100));
 
 // =====================================================================
 // 구조 모드: 클래스 노드, 클릭으로 주입 클래스 펼치기
@@ -309,13 +386,13 @@ function restyle() {
     return { id: e.id, color: { color: on ? base : mix(base, BG, 0.65), highlight: base, hover: base }, width: strong ? 2 : on ? 1.5 : 1 };
   }));
 }
-function expand(name) { const c = byName[name]; if (!c) return; expanded.add(name); for (const d of c.deps) addNode(d); syncEdges(); applyFocus(); relayout(); fitAll(); }
+function expand(name) { const c = byName[name]; if (!c) return; expanded.add(name); for (const d of c.deps) addNode(d); syncEdges(); applyFocus(); relayout(); reveal([name, ...c.deps]); }
 function collapse(name) {
   expanded.delete(name);
   const keep = new Set([...entries, ...pinned]); const stack = [...keep];
   while (stack.length) { const n = stack.pop(); if (!expanded.has(n)) continue; for (const d of byName[n].deps) if (!keep.has(d)) { keep.add(d); stack.push(d); } }
   for (const n of nodes.getIds()) if (!String(n).startsWith('__') && !keep.has(n)) { nodes.remove(n); expanded.delete(n); }
-  syncEdges(); applyFocus(); relayout(); fitAll();
+  syncEdges(); applyFocus(); relayout(); reveal([name]);
 }
 function reset() { nodes.clear(); edges.clear(); expanded.clear(); pinned.clear(); selected = null; trail = []; manualPos.clear(); entries.forEach(addNode); renderFolders(); relayout(); fitAll(); }
 function expandAll(force) {
@@ -397,7 +474,7 @@ function goTo(name, method) {
   if (!byName[name]) return;
   if (mode !== 'structure') setMode('structure');
   if (!nodes.get(name)) { const path = findPath(name); if (path) path.slice(0, -1).forEach((n) => { if (!expanded.has(n)) expand(n); }); else { addNode(name); pinned.add(name); syncEdges(); relayout(); } }
-  network.selectNodes([name]); showClass(name, method); fitAll();
+  network.selectNodes([name]); showClass(name, method); reveal([name]);
 }
 
 // ---- 클래스 Inspector: 고정 헤더 + Overview / Methods 탭 + 메서드 상세 (뒤로 가기) ----

@@ -1,6 +1,6 @@
 {
   "name": "nest-code-explorer",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Static code explorer for NestJS: interactive single-file HTML (structure + execution paths) and mermaid code map, generated from source with ts-morph",
   "keywords": [
     "nestjs",
